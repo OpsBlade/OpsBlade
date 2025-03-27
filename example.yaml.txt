@@ -1,0 +1,73 @@
+dryrun: false
+debug: false
+json: false
+credentials:
+  example:
+    user: nobody
+    pass: nothing
+
+tasks:
+    # Variables are a name value pair. The name must be a string. Enclosing string values in quotes
+    # is recommended to ensure they are not interpreted as a number or boolean.
+    # Task names are for human use only.
+    # The task field is matched against the task registry and must be an exact match.
+  - name: Set variables
+    task: variables_set
+    set:
+    - name: something_wanted
+      value: "yes"
+    - name: "hint"
+      value: "set debug to true if you'd like to see more output"
+
+    # This is an example of a task that makes a call to an API
+  - name: "Example call to an API"
+    task: example
+
+    # Filters are AWS EC2-compatible filters. The name is a string, the values are a list of strings. They are intended
+    # to be passed in API calls.
+    filters:
+    - name: "whatever"
+      values:
+        - "true"
+
+    # Select may be used to filter the results of an API call. It is up to the individual task to pass items
+    # through the select filter as contextually appropriate.
+    select:
+      - field: paid
+        value: "{{something_wanted}}"
+        compare: equal
+
+    # Fields is intended to select fields to be returned to the user. It is up to the individual task to pass
+    # relevant items through the fields filter.
+    fields:
+      - id
+      - tags.tag1
+
+  # The save task is completely optional and allows filtering.
+  # A common use case would be to store the output from a task for later processing. The file saved
+  # with variables_saved can be loaded in another workflow with variables_load.
+  - name: "Save all output from the tasks"
+    task: "variables_save"
+    filename: "/tmp/example1.json"
+
+  # Fields can be selected. This is applied over the entire map of variables.
+  # Note that since the task itself performed field filtering, only the fields that
+  # were passed through the task exist as variables.
+  - name: "Save mock_data only"
+    task: "variables_save"
+    fields:
+      - mock_data
+    filename: "/tmp/example2.json"
+
+  # This time we only want the id and tag1 values
+  - name: "Save variables, which includes the selected data"
+    task: "variables_save"
+    # This isn't the most useful, but it demonstrates the ability to filter data from within
+    # a list.
+    # "*" is used to indicate to iterate through all items in a slice and apply the next part of the
+    # dot notation field name to the top level of the list. This example will result in it iterating
+    # over all items in mock_data and returning a slice/list containing the id and tags.tag1 for each item.
+    fields:
+      - mock_data.*.id
+      - mock_data.*.tags.tag1
+    filename: "/tmp/example3.json"

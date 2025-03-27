@@ -1,0 +1,17 @@
+# Binaries for programs and plugins
+.DS_Store
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+bin/
+vendor/
+private/
+.idea
+.idea/*
+.env
+opsblade
+*.yaml

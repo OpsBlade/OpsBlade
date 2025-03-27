@@ -1,0 +1,55 @@
+// Copyright (c) 2025 Tenebris Technologies Inc.
+// This software is licensed under the MIT License (see LICENSE for details).
+
+package shared
+
+import (
+	"fmt"
+)
+
+type Task interface {
+	Execute() TaskResult
+}
+
+type TaskContext struct {
+	Credentials  *Credentials `json:"credentials,omitempty"` // Task credentials
+	DryRun       bool         `json:"dryrun,omitempty"`      // Dry run mode
+	Debug        bool         `json:"debug,omitempty"`       // Debug mode
+	Name         string       `json:"name,omitempty"`        // Task name
+	Task         string       `json:"task"`                  // Task type
+	Sequence     int          `json:"sequence"`              // Task sequence number
+	Instructions []byte       `json:"instructions"`          // Task instructions
+}
+
+var TaskRegistry = make(map[string]func(TaskContext) Task)
+
+// RegisterTask registers a task constructor with the task registry
+// A unique taskID is required for each task.
+func RegisterTask(taskID string, constructor func(TaskContext) Task) {
+	TaskRegistry[taskID] = constructor
+}
+
+func (c *TaskContext) String() string {
+	return fmt.Sprintf("Task %d \"%s\" (%s)", c.Sequence, c.Name, c.Task)
+}
+
+// Result returns a task result enriched with information from the task context
+func (c *TaskContext) Result(success bool, msg string, data any) TaskResult {
+	dataMap := AnyToMapAny(data)
+	return TaskResult{
+		MessageType: "task_stop",
+		Success:     success,
+		Msg:         msg,
+		Sequence:    c.Sequence,
+		Name:        c.Name,
+		Task:        c.Task,
+		Data:        dataMap}
+}
+
+// Error returns a task result error enriched with information from the task context
+func (c *TaskContext) Error(msg string, err error) TaskResult {
+	if err == nil {
+		return c.Result(false, msg, nil)
+	}
+	return c.Result(false, fmt.Sprintf("%s: %s", msg, err.Error()), nil)
+}
