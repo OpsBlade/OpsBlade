@@ -32,10 +32,6 @@ func (t *Task) Execute() shared.TaskResult {
 
 	shared.ProcessVars(t)
 
-	if t.Context.DryRun {
-		return t.Context.Result(true, fmt.Sprintf("Dry run: would load variables from %s\n", t.FileName), nil)
-	}
-
 	file, err := os.Open(t.FileName)
 	if err != nil {
 		return t.Context.Error("failed to open file", err)
