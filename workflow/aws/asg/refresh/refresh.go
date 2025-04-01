@@ -19,13 +19,13 @@ import (
 )
 
 type Task struct {
-	Context          shared.TaskContext      `yaml:"context" json:"context"`                   // Task context
-	Credentials      shared.Credentials      `yaml:"credentials" json:"credentials"`           // Allow override of credentials
-	LaunchTemplateId []string                `yaml:"launch_templates" json:"launch_templates"` // Launch Template ID located ASGs
-	SkipMatching     string                  `yaml:"skip_matching" json:"skip_matching"`       // Skip instances that match the launch template
-	Filters          []shared.Filter         `yaml:"filters" json:"filters"`                   // Filters to pass to AWS API
-	Select           []shared.SelectCriteria `yaml:"select" json:"select"`                     // Selection criteria to apply to the list of AMIs
-	Fields           []string                `yaml:"fields" json:"fields"`                     // List of fields to return as data
+	Context         shared.TaskContext      `yaml:"context" json:"context"`                   // Task context
+	Credentials     shared.Credentials      `yaml:"credentials" json:"credentials"`           // Allow override of credentials
+	LaunchTemplates []string                `yaml:"launch_templates" json:"launch_templates"` // Launch Template ID located ASGs
+	SkipMatching    string                  `yaml:"skip_matching" json:"skip_matching"`       // Skip instances that match the launch template
+	Filters         []shared.Filter         `yaml:"filters" json:"filters"`                   // Filters to pass to AWS API
+	Select          []shared.SelectCriteria `yaml:"select" json:"select"`                     // Selection criteria to apply to the list of AMIs
+	Fields          []string                `yaml:"fields" json:"fields"`                     // List of fields to return as data
 }
 
 func init() {
@@ -43,11 +43,14 @@ func (t *Task) Execute() shared.TaskResult {
 	// Resolve input variables
 	shared.ProcessVars(t)
 
+	// Ensure list of launch templates is resolved
+	shared.ProcessVars(t.LaunchTemplates)
+
 	if t.Context.Debug {
 		shared.DumpTask(t)
 	}
 
-	if len(t.LaunchTemplateId) < 1 {
+	if len(t.LaunchTemplates) < 1 {
 		return t.Context.Error("at least one launch template must be specified", nil)
 	}
 
@@ -102,7 +105,7 @@ func (t *Task) Execute() shared.TaskResult {
 		var selected bool
 		for _, asg := range page.AutoScalingGroups {
 
-			// First create if LaunchTemplate exists and has a LaunchTemplateId
+			// First create if LaunchTemplate exists and has a LaunchTemplates
 			if asg.LaunchTemplate == nil || asg.LaunchTemplate.LaunchTemplateId == nil {
 				continue
 			}
@@ -112,7 +115,7 @@ func (t *Task) Execute() shared.TaskResult {
 			}
 
 			// LaunchTemplate ID must match one item in the list
-			if !foundInList(t.LaunchTemplateId, *asg.LaunchTemplate.LaunchTemplateId) {
+			if !foundInList(t.LaunchTemplates, *asg.LaunchTemplate.LaunchTemplateId) {
 				continue
 			}
 
