@@ -5,8 +5,9 @@ package cmd
 
 import (
 	"encoding/json"
-	"github.com/OpsBlade/OpsBlade/shared"
 	"os/exec"
+
+	"github.com/OpsBlade/OpsBlade/shared"
 )
 
 type Task struct {

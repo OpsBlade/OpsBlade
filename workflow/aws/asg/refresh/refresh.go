@@ -154,10 +154,19 @@ func (t *Task) Execute() shared.TaskResult {
 			&autoscaling.StartInstanceRefreshInput{
 				AutoScalingGroupName: &asg,
 				Preferences: &types.RefreshPreferences{
-					SkipMatching:              aws.Bool(skipMatching),
-					AutoRollback:              aws.Bool(false),
+					SkipMatching: aws.Bool(skipMatching),
+					AutoRollback: aws.Bool(false),
+
+					// AWS Defaults
 					ScaleInProtectedInstances: "Wait",
 					StandbyInstances:          "Wait",
+
+					// This implements the "launch before terminating" policy
+					MaxHealthyPercentage: aws.Int32(110),
+					MinHealthyPercentage: aws.Int32(100),
+
+					// Give instances time to warm up
+					InstanceWarmup: aws.Int32(300),
 				},
 			})
 		if err != nil {
