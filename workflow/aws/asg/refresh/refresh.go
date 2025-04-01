@@ -19,13 +19,13 @@ import (
 )
 
 type Task struct {
-	Context          shared.TaskContext      `yaml:"context" json:"context"`                 // Task context
-	Credentials      shared.Credentials      `yaml:"credentials" json:"credentials"`         // Allow override of credentials
-	LaunchTemplateId string                  `yaml:"launch_template" json:"launch_template"` // Launch Template ID located ASGs
-	SkipMatching     string                  `yaml:"skip_matching" json:"skip_matching"`     // Skip instances that match the launch template
-	Filters          []shared.Filter         `yaml:"filters" json:"filters"`                 // Filters to pass to AWS API
-	Select           []shared.SelectCriteria `yaml:"select" json:"select"`                   // Selection criteria to apply to the list of AMIs
-	Fields           []string                `yaml:"fields" json:"fields"`                   // List of fields to return as data
+	Context          shared.TaskContext      `yaml:"context" json:"context"`                   // Task context
+	Credentials      shared.Credentials      `yaml:"credentials" json:"credentials"`           // Allow override of credentials
+	LaunchTemplateId []string                `yaml:"launch_templates" json:"launch_templates"` // Launch Template ID located ASGs
+	SkipMatching     string                  `yaml:"skip_matching" json:"skip_matching"`       // Skip instances that match the launch template
+	Filters          []shared.Filter         `yaml:"filters" json:"filters"`                   // Filters to pass to AWS API
+	Select           []shared.SelectCriteria `yaml:"select" json:"select"`                     // Selection criteria to apply to the list of AMIs
+	Fields           []string                `yaml:"fields" json:"fields"`                     // List of fields to return as data
 }
 
 func init() {
@@ -47,8 +47,8 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	if t.LaunchTemplateId == "" {
-		return t.Context.Error("launch_template is required", nil)
+	if len(t.LaunchTemplateId) < 1 {
+		return t.Context.Error("at least one launch template must be specified", nil)
 	}
 
 	// SkipMatching defaults to true
@@ -111,8 +111,8 @@ func (t *Task) Execute() shared.TaskResult {
 				continue
 			}
 
-			// LaunchTemplate ID must match
-			if strings.ToLower(*asg.LaunchTemplate.LaunchTemplateId) != strings.ToLower(t.LaunchTemplateId) {
+			// LaunchTemplate ID must match one item in the list
+			if !foundInList(t.LaunchTemplateId, *asg.LaunchTemplate.LaunchTemplateId) {
 				continue
 			}
 
@@ -190,4 +190,13 @@ func (t *Task) Execute() shared.TaskResult {
 		success,
 		msg,
 		map[string]any{"asg_count": len(asgList), "asg_results": asgResults})
+}
+
+func foundInList(list []string, item string) bool {
+	for _, i := range list {
+		if strings.ToLower(i) == strings.ToLower(item) {
+			return true
+		}
+	}
+	return false
 }
