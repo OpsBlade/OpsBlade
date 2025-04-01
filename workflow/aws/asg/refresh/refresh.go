@@ -43,9 +43,6 @@ func (t *Task) Execute() shared.TaskResult {
 	// Resolve input variables
 	shared.ProcessVars(t)
 
-	// Ensure list of launch templates is resolved
-	shared.ProcessVars(t.LaunchTemplates)
-
 	if t.Context.Debug {
 		shared.DumpTask(t)
 	}
@@ -140,7 +137,11 @@ func (t *Task) Execute() shared.TaskResult {
 	}
 
 	if t.Context.Debug {
-		fmt.Printf("Found %d autoscaling groups to refresh: %v\n", len(asgList), asgList)
+		fmt.Printf("Found %d autoscaling groups to refresh:\n", len(asgList))
+		for _, item := range asgList {
+			fmt.Printf("  %s\n", item)
+		}
+		fmt.Println("")
 	}
 
 	// Set up the results map
