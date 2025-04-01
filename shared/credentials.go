@@ -7,29 +7,29 @@ package shared
 // but JSON is suppressed to help avoid leaking sensitive information.
 
 type Credentials struct {
-	AWS     AWSCreds     `yaml:"aws" json:"-"`
-	JIRA    JiraCreds    `yaml:"jira" json:"-"`
-	Slack   SlackCreds   `yaml:"slack" json:"-"`
-	Example ExampleCreds `yaml:"example" json:"-"`
+	AWS     AWSCreds     `yaml:"aws" json:"aws"`
+	JIRA    JiraCreds    `yaml:"jira" json:"jira"`
+	Slack   SlackCreds   `yaml:"slack" json:"slack"`
+	Example ExampleCreds `yaml:"example" json:"example"`
 }
 
 type AWSCreds struct {
-	Region     string `yaml:"region" json:"region" json:"-"`
-	AccessKey  string `yaml:"access_key" json:"access_key" json:"-"`
-	SecretKey  string `yaml:"secret_key" json:"secret_key" json:"-"`
-	Profile    string `yaml:"profile" json:"profile"  json:"-"`
-	ConfigFile string `yaml:"config_file" json:"config_file" json:"-"`
-	CredsFile  string `yaml:"creds_file" json:"creds_file" json:"-"`
+	Region     string `yaml:"region" json:"region" json:"region"`
+	AccessKey  string `yaml:"access_key" json:"access_key" json:"access_key"`
+	SecretKey  string `yaml:"secret_key" json:"secret_key" json:"secret_key"`
+	Profile    string `yaml:"profile" json:"profile"  json:"profile"`
+	ConfigFile string `yaml:"config_file" json:"config_file" json:"config_file"`
+	CredsFile  string `yaml:"creds_file" json:"creds_file" json:"creds_file"`
 }
 
 type JiraCreds struct {
-	Username string `yaml:"username" json:"username" json:"-"`
-	Password string `yaml:"password" json:"password" json:"-"`
-	BaseURL  string `yaml:"base_url" json:"base_url" json:"-"`
+	Username string `yaml:"username" json:"username" json:"username"`
+	Password string `yaml:"password" json:"password" json:"password"`
+	BaseURL  string `yaml:"base_url" json:"base_url" json:"base_url"`
 }
 
 type SlackCreds struct {
-	Webhook string `yaml:"webhook" json:"webhook" json:"-"`
+	Webhook string `yaml:"webhook" json:"webhook"`
 }
 
 type ExampleCreds struct{}
@@ -47,6 +47,12 @@ func NewCredentials(taskCredentials Credentials, contextCredentials Credentials)
 		creds.JIRA = taskCredentials.JIRA
 	} else if OneField(contextCredentials.JIRA) {
 		creds.JIRA = contextCredentials.JIRA
+	}
+
+	if OneField(taskCredentials.Slack) {
+		creds.Slack = taskCredentials.Slack
+	} else if OneField(contextCredentials.Slack) {
+		creds.Slack = contextCredentials.Slack
 	}
 
 	return creds

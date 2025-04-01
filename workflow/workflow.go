@@ -178,7 +178,7 @@ func (w *Workflow) AddTaskYAML(task []byte) error {
 // Execute the loaded workflow
 //
 //goland:noinspection GoUnusedExportedFunction
-func (w *Workflow) Execute() {
+func (w *Workflow) Execute() bool {
 	var err error
 	var count int
 
@@ -214,7 +214,7 @@ func (w *Workflow) Execute() {
 
 		if taskType == "" {
 			if w.taskEnd(taskContext.Error(fmt.Sprintf("%s: Task type is missing or not a string\n", taskContext.String()), nil)) {
-				break
+				return false
 			}
 			continue
 		}
@@ -231,8 +231,8 @@ func (w *Workflow) Execute() {
 		// Obtain the task constructor from the registry
 		constructor, ok := shared.TaskRegistry[taskType]
 		if !ok {
-			if w.taskEnd(taskContext.Error(fmt.Sprintf("Invalid task: %s", taskType), nil)) {
-				break
+			if !w.taskEnd(taskContext.Error(fmt.Sprintf("Invalid task: %s", taskType), nil)) {
+				return false
 			}
 			continue
 		}
@@ -245,7 +245,7 @@ func (w *Workflow) Execute() {
 		taskContext.Instructions, err = json.Marshal(rawTask)
 		if err != nil {
 			if !w.taskEnd(taskContext.Error("Failed to serialize task", err)) {
-				break
+				return false
 			}
 			continue
 		}
@@ -279,9 +279,10 @@ func (w *Workflow) Execute() {
 
 		// Process the result and break if necessary
 		if !w.taskEnd(result) {
-			break
+			return false
 		}
 	}
+	return true
 }
 
 // Dump pretty-prints the loaded workflow

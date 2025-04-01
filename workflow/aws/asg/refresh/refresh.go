@@ -102,7 +102,7 @@ func (t *Task) Execute() shared.TaskResult {
 		var selected bool
 		for _, asg := range page.AutoScalingGroups {
 
-			// First check if LaunchTemplate exists and has a LaunchTemplateId
+			// First create if LaunchTemplate exists and has a LaunchTemplateId
 			if asg.LaunchTemplate == nil || asg.LaunchTemplate.LaunchTemplateId == nil {
 				continue
 			}

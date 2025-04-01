@@ -137,7 +137,7 @@ func ProcessVars(v any) {
 			ProcessVars(field.Addr().Interface())
 		}
 
-		// Pointer check
+		// Pointer create
 		if field.Kind() == reflect.Ptr && !field.IsNil() {
 			elem := field.Elem()
 			if elem.Kind() == reflect.Struct {
@@ -147,32 +147,41 @@ func ProcessVars(v any) {
 
 		// Handle maps
 		if field.Kind() == reflect.Map && field.Type().Key().Kind() == reflect.String {
-			mapVal := field.Interface().(map[string]any)
-			newMap := make(map[string]any)
-			for key, value := range mapVal {
-				// If the value is a slice, recurse over each element
-				rv := reflect.ValueOf(value)
-				if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
-					slice := make([]any, rv.Len())
-					for idx := 0; idx < rv.Len(); idx++ {
-						elem := rv.Index(idx).Interface()
-						// Recurse if it's a map or struct
-						if reflect.TypeOf(elem).Kind() == reflect.Map ||
-							reflect.TypeOf(elem).Kind() == reflect.Struct {
-							ProcessVars(&elem)
-						}
-						slice[idx] = replaceVarsInString(elem)
-					}
-					newMap[key] = slice
-				} else if rv.Kind() == reflect.Map || rv.Kind() == reflect.Struct {
-					ProcessVars(&value)
-					newMap[key] = value
-				} else {
-					newMap[key] = replaceVarsInString(value)
+			if field.Type().Elem().Kind() == reflect.String {
+				originalMap := field.Interface().(map[string]string)
+				newMap := make(map[string]string)
+				for k, v := range originalMap {
+					newMap[k] = replaceVarsInString(v)
 				}
+				field.Set(reflect.ValueOf(newMap))
+			} else {
+				mapVal := field.Interface().(map[string]any)
+				newMap := make(map[string]any)
+				for key, value := range mapVal {
+					// If the value is a slice, recurse over each element
+					rv := reflect.ValueOf(value)
+					if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+						slice := make([]any, rv.Len())
+						for idx := 0; idx < rv.Len(); idx++ {
+							elem := rv.Index(idx).Interface()
+							// Recurse if it's a map or struct
+							if reflect.TypeOf(elem).Kind() == reflect.Map ||
+								reflect.TypeOf(elem).Kind() == reflect.Struct {
+								ProcessVars(&elem)
+							}
+							slice[idx] = replaceVarsInString(elem)
+						}
+						newMap[key] = slice
+					} else if rv.Kind() == reflect.Map || rv.Kind() == reflect.Struct {
+						ProcessVars(&value)
+						newMap[key] = value
+					} else {
+						newMap[key] = replaceVarsInString(value)
+					}
+				}
+				field.Set(reflect.ValueOf(newMap))
+				continue
 			}
-			field.Set(reflect.ValueOf(newMap))
-			continue
 		}
 
 		// Handle slices/arrays

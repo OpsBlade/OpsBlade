@@ -80,7 +80,7 @@ func collectFields(path string, val any, fields []string, output map[string]any)
 			keyStr := fmt.Sprint(key.Interface())
 			value := v.MapIndex(key).Interface()
 
-			// Direct key check
+			// Direct key create
 			if containsFieldIgnoreCase(fields, keyStr) {
 				output[keyStr] = value
 			}
@@ -243,7 +243,7 @@ func removeConflictingFields(fields []string) []string {
 			// Convert the field to lower case and add a period
 			check := strings.ToLower(f) + "."
 
-			// If field begins with check, mark it as false
+			// If field begins with create, mark it as false
 			if strings.HasPrefix(field, check) {
 				lcSet[field] = false
 				break

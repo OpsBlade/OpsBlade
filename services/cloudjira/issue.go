@@ -1,0 +1,28 @@
+// Copyright (c) 2025 Tenebris Technologies Inc.
+// This software is licensed under the MIT License (see LICENSE for details).
+
+package cloudjira
+
+import (
+	"fmt"
+	"github.com/andygrunwald/go-jira"
+)
+
+func (j *CloudJira) GetIssue(issueID string) (*jira.Issue, error) {
+	client, err := j.Client()
+	if err != nil {
+		return nil, err
+	}
+
+	issue, _, err := client.Issue.Get(issueID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if issue == nil {
+		return nil, fmt.Errorf("issue not found")
+	}
+
+	// Return the issue key
+	return issue, nil
+}

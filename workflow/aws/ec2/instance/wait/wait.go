@@ -105,7 +105,7 @@ func (t *Task) Execute() shared.TaskResult {
 					return t.Context.Result(true, fmt.Sprintf("instance %s is in state %s", t.InstanceId, t.State), nil)
 				}
 
-				// For running state, we need to also check status checks
+				// For running state, we need to also create status checks
 				break
 			}
 
