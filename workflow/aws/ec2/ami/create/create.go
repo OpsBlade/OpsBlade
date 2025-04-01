@@ -90,7 +90,7 @@ func (t *Task) Execute() shared.TaskResult {
 	result, err := client.CreateImage(context.TODO(), input)
 	if err != nil {
 		if t.Context.DryRun && shared.DryRunErrCheck(err) {
-			return t.Context.Result(true, fmt.Sprintf("Dryrun, AWS API returned: %s", err.Error()), map[string]string{"image_id": "dry-run"})
+			return t.Context.Result(true, fmt.Sprintf("Dryrun, AWS API returned: %s", err.Error()), map[string]string{"image_id": "AMI-none-dry-run"})
 		}
 		return t.Context.Error("error creating image", err)
 	}

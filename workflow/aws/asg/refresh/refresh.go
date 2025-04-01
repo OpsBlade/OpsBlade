@@ -19,13 +19,13 @@ import (
 )
 
 type Task struct {
-	Context          shared.TaskContext      `yaml:"context" json:"context"`                 // Task context
-	Credentials      shared.Credentials      `yaml:"credentials" json:"credentials"`         // Allow override of credentials
-	LaunchTemplateId string                  `yaml:"launch_template" json:"launch_template"` // Launch Template ID located ASGs
-	SkipMatching     string                  `yaml:"skip_matching" json:"skip_matching"`     // Skip instances that match the launch template
-	Filters          []shared.Filter         `yaml:"filters" json:"filters"`                 // Filters to pass to AWS API
-	Select           []shared.SelectCriteria `yaml:"select" json:"select"`                   // Selection criteria to apply to the list of AMIs
-	Fields           []string                `yaml:"fields" json:"fields"`                   // List of fields to return as data
+	Context         shared.TaskContext      `yaml:"context" json:"context"`                   // Task context
+	Credentials     shared.Credentials      `yaml:"credentials" json:"credentials"`           // Allow override of credentials
+	LaunchTemplates []string                `yaml:"launch_templates" json:"launch_templates"` // Launch Template ID located ASGs
+	SkipMatching    string                  `yaml:"skip_matching" json:"skip_matching"`       // Skip instances that match the launch template
+	Filters         []shared.Filter         `yaml:"filters" json:"filters"`                   // Filters to pass to AWS API
+	Select          []shared.SelectCriteria `yaml:"select" json:"select"`                     // Selection criteria to apply to the list of AMIs
+	Fields          []string                `yaml:"fields" json:"fields"`                     // List of fields to return as data
 }
 
 func init() {
@@ -47,8 +47,8 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	if t.LaunchTemplateId == "" {
-		return t.Context.Error("launch_template is required", nil)
+	if len(t.LaunchTemplates) < 1 {
+		return t.Context.Error("at least one launch template must be specified", nil)
 	}
 
 	// SkipMatching defaults to true
@@ -102,7 +102,7 @@ func (t *Task) Execute() shared.TaskResult {
 		var selected bool
 		for _, asg := range page.AutoScalingGroups {
 
-			// First create if LaunchTemplate exists and has a LaunchTemplateId
+			// First create if LaunchTemplate exists and has a LaunchTemplates
 			if asg.LaunchTemplate == nil || asg.LaunchTemplate.LaunchTemplateId == nil {
 				continue
 			}
@@ -111,8 +111,8 @@ func (t *Task) Execute() shared.TaskResult {
 				continue
 			}
 
-			// LaunchTemplate ID must match
-			if strings.ToLower(*asg.LaunchTemplate.LaunchTemplateId) != strings.ToLower(t.LaunchTemplateId) {
+			// LaunchTemplate ID must match one item in the list
+			if !foundInList(t.LaunchTemplates, *asg.LaunchTemplate.LaunchTemplateId) {
 				continue
 			}
 
@@ -137,11 +137,11 @@ func (t *Task) Execute() shared.TaskResult {
 	}
 
 	if t.Context.Debug {
-		fmt.Printf("Found %d autoscaling groups to refresh: %v\n", len(asgList), asgList)
-	}
-
-	if t.Context.DryRun {
-		return t.Context.Result(true, "Dry run, not refreshing autoscaling groups", asgList)
+		fmt.Printf("Found %d autoscaling groups to refresh:\n", len(asgList))
+		for _, item := range asgList {
+			fmt.Printf("  %s\n", item)
+		}
+		fmt.Println("")
 	}
 
 	// Set up the results map
@@ -150,35 +150,57 @@ func (t *Task) Execute() shared.TaskResult {
 
 	// Iterate over the list of autoscaling groups and refresh them
 	for _, asg := range asgList {
-		_, err = asgClient.StartInstanceRefresh(context.TODO(),
-			&autoscaling.StartInstanceRefreshInput{
-				AutoScalingGroupName: &asg,
-				Preferences: &types.RefreshPreferences{
-					SkipMatching: aws.Bool(skipMatching),
-					AutoRollback: aws.Bool(false),
 
-					// AWS Defaults
-					ScaleInProtectedInstances: "Wait",
-					StandbyInstances:          "Wait",
-
-					// This implements the "launch before terminating" policy
-					MaxHealthyPercentage: aws.Int32(110),
-					MinHealthyPercentage: aws.Int32(100),
-
-					// Give instances time to warm up
-					InstanceWarmup: aws.Int32(300),
-				},
-			})
-		if err != nil {
-			asgResults[asg] = fmt.Sprintf("Instance Refresh failed: %s", err.Error())
-			success = false
-		} else {
+		if t.Context.DryRun {
 			asgResults[asg] = "success"
+		} else {
+
+			// Refresh the instances in the ASG
+			_, err = asgClient.StartInstanceRefresh(context.TODO(),
+				&autoscaling.StartInstanceRefreshInput{
+					AutoScalingGroupName: &asg,
+					Preferences: &types.RefreshPreferences{
+						SkipMatching: aws.Bool(skipMatching),
+						AutoRollback: aws.Bool(false),
+
+						// AWS Defaults
+						ScaleInProtectedInstances: "Wait",
+						StandbyInstances:          "Wait",
+
+						// This implements the "launch before terminating" policy
+						MaxHealthyPercentage: aws.Int32(110),
+						MinHealthyPercentage: aws.Int32(100),
+
+						// Give instances time to warm up
+						InstanceWarmup: aws.Int32(300),
+					},
+				})
+			if err != nil {
+				asgResults[asg] = fmt.Sprintf("Instance Refresh failed: %s", err.Error())
+				success = false
+			} else {
+				asgResults[asg] = "success"
+			}
 		}
 	}
 
+	var msg string
+	if t.Context.DryRun {
+		msg = "Dry run, ASG refresh simulated"
+	} else {
+		msg = "AWS Autoscaling Groups refreshed"
+	}
 	return t.Context.Result(
 		success,
-		"AWS Autoscaling Group list",
-		asgResults)
+		msg,
+		map[string]any{"asg_refresh_count": len(asgList), "asg_refresh_results": asgResults})
+}
+
+func foundInList(list []string, item string) bool {
+	for _, i := range list {
+		if strings.ToLower(i) == strings.ToLower(item) {
+			return true
+		}
+	}
+	return false
 }

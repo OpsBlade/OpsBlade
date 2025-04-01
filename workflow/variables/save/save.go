@@ -39,6 +39,11 @@ func (t *Task) Execute() shared.TaskResult {
 	// Apply field selection
 	selectedVars := shared.SelectFields(vars, t.Fields)
 
+	if t.Context.Debug {
+		fmt.Println("Variables to be saved:")
+		fmt.Println(shared.Dump(selectedVars))
+	}
+
 	if t.Context.DryRun {
 		return t.Context.Result(true, fmt.Sprintf("Dry run: would save variables to %s", t.FileName), nil)
 	}
