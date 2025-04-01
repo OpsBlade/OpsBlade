@@ -231,7 +231,7 @@ func (w *Workflow) Execute() bool {
 		// Obtain the task constructor from the registry
 		constructor, ok := shared.TaskRegistry[taskType]
 		if !ok {
-			if w.taskEnd(taskContext.Error(fmt.Sprintf("Invalid task: %s", taskType), nil)) {
+			if !w.taskEnd(taskContext.Error(fmt.Sprintf("Invalid task: %s", taskType), nil)) {
 				return false
 			}
 			continue
