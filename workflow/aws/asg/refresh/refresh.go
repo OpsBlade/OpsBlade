@@ -193,7 +193,7 @@ func (t *Task) Execute() shared.TaskResult {
 	return t.Context.Result(
 		success,
 		msg,
-		map[string]any{"asg_count": len(asgList), "asg_results": asgResults})
+		map[string]any{"asg_refresh_count": len(asgList), "asg_refresh_results": asgResults})
 }
 
 func foundInList(list []string, item string) bool {
