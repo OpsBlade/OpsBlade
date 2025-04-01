@@ -137,7 +137,7 @@ func ProcessVars(v any) {
 			ProcessVars(field.Addr().Interface())
 		}
 
-		// Pointer check
+		// Pointer create
 		if field.Kind() == reflect.Ptr && !field.IsNil() {
 			elem := field.Elem()
 			if elem.Kind() == reflect.Struct {

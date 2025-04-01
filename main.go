@@ -65,7 +65,11 @@ func main() {
 	}
 
 	// Execute the workflow
-	w.Execute()
+	result := w.Execute()
+	if result {
+		os.Exit(0)
+	}
+	os.Exit(1)
 }
 
 // usage prints the usage message

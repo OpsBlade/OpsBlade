@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Tenebris Technologies Inc.
 // This software is licensed under the MIT License (see LICENSE for details).
 
-package createIssue
+package create
 
 import (
 	"encoding/json"
@@ -14,14 +14,15 @@ import (
 )
 
 type Task struct {
-	Context     shared.TaskContext `yaml:"context" json:"context"`         // Task context
-	Credentials shared.Credentials `yaml:"credentials" json:"credentials"` // Allow override of credentials
-	Project     string             `yaml:"project" json:"project"`         // JIRA project key
-	IssueType   string             `yaml:"issue_type" json:"issue_type"`   // JIRA issue type
-	Summary     string             `yaml:"summary" json:"summary"`         // Summary of the issue
-	Description string             `yaml:"description" json:"description"` // Description of the issue
-	Assignee    string             `yaml:"assignee" json:"assignee"`       // Assignee email address or "" for default assignment
-	Fields      []string           `yaml:"fields" json:"fields"`           // List of fields to return as data
+	Context      shared.TaskContext `yaml:"context" json:"context"`             // Task context
+	Credentials  shared.Credentials `yaml:"credentials" json:"credentials"`     // Allow override of credentials
+	Project      string             `yaml:"project" json:"project"`             // JIRA project key
+	ActiveSprint bool               `yaml:"active_sprint" json:"active_sprint"` // Open issue in active sprint
+	IssueType    string             `yaml:"issue_type" json:"issue_type"`       // JIRA issue type
+	Summary      string             `yaml:"summary" json:"summary"`             // Summary of the issue
+	Description  string             `yaml:"description" json:"description"`     // Description of the issue
+	Assignee     string             `yaml:"assignee" json:"assignee"`           // Assignee email address or "" for default assignment
+	Fields       []string           `yaml:"fields" json:"fields"`               // List of fields to return as data
 }
 
 func init() {
@@ -67,11 +68,39 @@ func (t *Task) Execute() shared.TaskResult {
 		}
 	}
 
+	// Create a JIRA client
 	client, err := jiraClientConfig.Client()
 	if err != nil {
 		return t.Context.Error("unable to create JIRA client", err)
 	}
 
+	// If required, find active sprint
+	var sprint jira.Sprint
+	var sprintField string
+	if t.ActiveSprint {
+		fmt.Println("Finding active sprint for project", t.Project)
+		sprint, err = jiraClientConfig.GetActiveSprint(t.Project)
+		if err != nil {
+			return t.Context.Error("failed to get active sprint", err)
+		}
+
+		if sprint.ID == 0 {
+			return t.Context.Error("jira returned ID 0 for sprint", nil)
+		}
+
+		// Jira uses a custom field for the sprint ID
+		sprintField, err = jiraClientConfig.GetSprintCustomField()
+		if err != nil {
+			return t.Context.Error("error determining custom field used for 'sprint'", err)
+		}
+
+		if sprintField == "" {
+			return t.Context.Error("jira returned empty sprint field", nil)
+		}
+
+	}
+
+	// Create the issue
 	jiraIssue := jira.Issue{
 		Fields: &jira.IssueFields{
 			Description: t.Description,
@@ -85,11 +114,21 @@ func (t *Task) Execute() shared.TaskResult {
 		},
 	}
 
+	if t.ActiveSprint && sprint.ID != 0 {
+		jiraIssue.Fields.Unknowns = map[string]interface{}{
+			sprintField: sprint.ID,
+		}
+	}
+
 	if t.Context.DryRun {
 		shared.SetVar("jira_issue_id", "jira-issue-dry-run")
 	} else {
-		createdIssue, _, issueErr := client.Issue.Create(&jiraIssue)
+		createdIssue, response, issueErr := client.Issue.Create(&jiraIssue)
 		if issueErr != nil {
+			if t.Context.Debug {
+				fmt.Println("Error creating issue. Jira response:", jiraClientConfig.ResponseToString(response))
+				fmt.Println(shared.Dump(jiraIssue))
+			}
 			return t.Context.Error("failed to create JIRA issue", issueErr)
 		}
 
@@ -98,8 +137,9 @@ func (t *Task) Execute() shared.TaskResult {
 		}
 
 		// Save the created issue ID
-		shared.SetVar("jira_issue_id", createdIssue.Key)
+		//shared.SetVar("jira_issue_id", createdIssue.Key)
 		data["jira_issue_id"] = createdIssue.Key
+		data["jira_project"] = t.Project
 
 		// If an assignee is provided, assign the issue
 		if t.Assignee != "" {
