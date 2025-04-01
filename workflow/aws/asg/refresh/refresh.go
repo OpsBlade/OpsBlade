@@ -140,45 +140,54 @@ func (t *Task) Execute() shared.TaskResult {
 		fmt.Printf("Found %d autoscaling groups to refresh: %v\n", len(asgList), asgList)
 	}
 
-	if t.Context.DryRun {
-		return t.Context.Result(true, "Dry run, not refreshing autoscaling groups", asgList)
-	}
-
 	// Set up the results map
 	asgResults := make(map[string]string)
 	success := true
 
 	// Iterate over the list of autoscaling groups and refresh them
 	for _, asg := range asgList {
-		_, err = asgClient.StartInstanceRefresh(context.TODO(),
-			&autoscaling.StartInstanceRefreshInput{
-				AutoScalingGroupName: &asg,
-				Preferences: &types.RefreshPreferences{
-					SkipMatching: aws.Bool(skipMatching),
-					AutoRollback: aws.Bool(false),
 
-					// AWS Defaults
-					ScaleInProtectedInstances: "Wait",
-					StandbyInstances:          "Wait",
-
-					// This implements the "launch before terminating" policy
-					MaxHealthyPercentage: aws.Int32(110),
-					MinHealthyPercentage: aws.Int32(100),
-
-					// Give instances time to warm up
-					InstanceWarmup: aws.Int32(300),
-				},
-			})
-		if err != nil {
-			asgResults[asg] = fmt.Sprintf("Instance Refresh failed: %s", err.Error())
-			success = false
-		} else {
+		if t.Context.DryRun {
 			asgResults[asg] = "success"
+		} else {
+
+			// Refresh the instances in the ASG
+			_, err = asgClient.StartInstanceRefresh(context.TODO(),
+				&autoscaling.StartInstanceRefreshInput{
+					AutoScalingGroupName: &asg,
+					Preferences: &types.RefreshPreferences{
+						SkipMatching: aws.Bool(skipMatching),
+						AutoRollback: aws.Bool(false),
+
+						// AWS Defaults
+						ScaleInProtectedInstances: "Wait",
+						StandbyInstances:          "Wait",
+
+						// This implements the "launch before terminating" policy
+						MaxHealthyPercentage: aws.Int32(110),
+						MinHealthyPercentage: aws.Int32(100),
+
+						// Give instances time to warm up
+						InstanceWarmup: aws.Int32(300),
+					},
+				})
+			if err != nil {
+				asgResults[asg] = fmt.Sprintf("Instance Refresh failed: %s", err.Error())
+				success = false
+			} else {
+				asgResults[asg] = "success"
+			}
 		}
 	}
 
+	var msg string
+	if t.Context.DryRun {
+		msg = "Dry run, ASG refresh simulated"
+	} else {
+		msg = "AWS Autoscaling Groups refreshed"
+	}
 	return t.Context.Result(
 		success,
-		"AWS Autoscaling Group list",
-		asgResults)
+		msg,
+		map[string]any{"asg_count": len(asgList), "asg_results": asgResults})
 }

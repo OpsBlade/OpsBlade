@@ -40,7 +40,8 @@ func (t *Task) Execute() shared.TaskResult {
 	selectedVars := shared.SelectFields(vars, t.Fields)
 
 	if t.Context.Debug {
-		fmt.Println("Selected variables to save:\n", shared.Dump(selectedVars))
+		fmt.Println("Variables to be saved:")
+		fmt.Println(shared.Dump(selectedVars))
 	}
 
 	if t.Context.DryRun {
