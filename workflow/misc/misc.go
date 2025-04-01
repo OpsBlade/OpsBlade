@@ -5,4 +5,5 @@ package misc
 
 import (
 	_ "github.com/OpsBlade/OpsBlade/workflow/misc/dryrun"
+	_ "github.com/OpsBlade/OpsBlade/workflow/misc/sleep"
 )

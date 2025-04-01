@@ -59,5 +59,5 @@ func (t *Task) Execute() shared.TaskResult {
 		v = shared.SelectFields(v, t.Fields)
 	}
 
-	return t.Context.Result(true, fmt.Sprintf("Loaded variables from %s\n", t.FileName), v)
+	return t.Context.Result(true, fmt.Sprintf("Loaded variables from %s", t.FileName), v)
 }
