@@ -15,7 +15,7 @@ import (
 //goland:noinspection GoUnusedConst
 const (
 	PROGNAME = "OpsBlade"
-	VERSION  = "0.1.0"
+	VERSION  = "0.1.1"
 )
 
 // This program serves both as a CLI to execute workflows from a YAML file or stdin, and as an example of
@@ -33,6 +33,8 @@ func main() {
 	pflag.BoolVarP(&debug, "debug", "v", false, "Debug mode")
 	pflag.Usage = usage
 	pflag.Parse()
+
+	fmt.Printf("%s v%s\n\n", PROGNAME, VERSION)
 
 	// Require stdin or a filename, but not both
 	var yamlFilename = ""
