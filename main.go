@@ -15,7 +15,7 @@ import (
 //goland:noinspection GoUnusedConst
 const (
 	PROGNAME = "OpsBlade"
-	VERSION  = "0.1.3"
+	VERSION  = "0.1.4"
 )
 
 // This program serves both as a CLI to execute workflows from a YAML file or stdin, and as an example of
@@ -69,8 +69,10 @@ func main() {
 	// Execute the workflow
 	result := w.Execute()
 	if result {
+		fmt.Println("All tasks complete. Exiting with code 0.")
 		os.Exit(0)
 	}
+	fmt.Println("Terminating due to failed task. Exiting with code 1.")
 	os.Exit(1)
 }
 
