@@ -15,7 +15,7 @@ import (
 //goland:noinspection GoUnusedConst
 const (
 	PROGNAME = "OpsBlade"
-	VERSION  = "0.1.2"
+	VERSION  = "0.1.3"
 )
 
 // This program serves both as a CLI to execute workflows from a YAML file or stdin, and as an example of
