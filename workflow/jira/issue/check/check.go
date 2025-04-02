@@ -65,8 +65,8 @@ func (t *Task) Execute() shared.TaskResult {
 	}
 
 	// Obtain the status and resolution, but check for nil pointers
-	var issueStatus string
-	var issueResolution string
+	issueStatus := "none"     // This should never be the case
+	issueResolution := "none" // May not be resolved yet
 	if issue.Fields != nil {
 		if issue.Fields.Status != nil {
 			issueStatus = issue.Fields.Status.Name
@@ -84,17 +84,17 @@ func (t *Task) Execute() shared.TaskResult {
 
 	// Check if the issue is in the desired state
 	if t.RequiredStatus != "" {
-		if strings.ToLower(issue.Fields.Status.Name) != strings.ToLower(t.RequiredStatus) {
+		if strings.ToLower(issueStatus) != strings.ToLower(t.RequiredStatus) {
 			return t.Context.Error(
-				fmt.Sprintf("JIRA issue %s is in status '%s' not required status '%s'", t.IssueId, issue.Fields.Status.Name, t.RequiredStatus),
+				fmt.Sprintf("JIRA issue %s is in status '%s' but status '%s' is required", t.IssueId, issueStatus, t.RequiredStatus),
 				nil)
 		}
 	}
 
 	if t.RequiredResolution != "" {
-		if strings.ToLower(issue.Fields.Resolution.Name) != strings.ToLower(t.RequiredResolution) {
+		if strings.ToLower(issueResolution) != strings.ToLower(t.RequiredResolution) {
 			return t.Context.Error(
-				fmt.Sprintf("JIRA issue %s is in resolution '%s' not required resolution '%s'", t.IssueId, issue.Fields.Resolution.Name, t.RequiredResolution),
+				fmt.Sprintf("JIRA issue %s is in resolution '%s' but resolution '%s' is required", t.IssueId, issueResolution, t.RequiredResolution),
 				nil)
 		}
 	}
