@@ -15,7 +15,7 @@ import (
 //goland:noinspection GoUnusedConst
 const (
 	PROGNAME = "OpsBlade"
-	VERSION  = "0.1.4"
+	VERSION  = "0.1.5"
 )
 
 // This program serves both as a CLI to execute workflows from a YAML file or stdin, and as an example of
@@ -40,13 +40,13 @@ func main() {
 	var yamlFilename = ""
 	if stdin {
 		if len(pflag.Args()) > 0 {
-			fmt.Println("\nError: Cannot use both -stdin and a filename argument")
+			fmt.Println("Error: Cannot use both -stdin and a filename argument")
 			usage()
 			os.Exit(1)
 		}
 	} else {
 		if len(pflag.Args()) < 1 {
-			fmt.Println("\nError: Either a filename or --stdin must be provided")
+			fmt.Println("Error: Either a filename or --stdin must be provided")
 			usage()
 			os.Exit(1)
 		}
