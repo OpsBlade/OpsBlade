@@ -23,6 +23,7 @@ import (
 	_ "github.com/OpsBlade/OpsBlade/workflow/aws"
 	_ "github.com/OpsBlade/OpsBlade/workflow/cmd"
 	_ "github.com/OpsBlade/OpsBlade/workflow/example" // for demo and testing purposes
+	_ "github.com/OpsBlade/OpsBlade/workflow/file"
 	_ "github.com/OpsBlade/OpsBlade/workflow/jira"
 	_ "github.com/OpsBlade/OpsBlade/workflow/misc"
 	_ "github.com/OpsBlade/OpsBlade/workflow/slack"
