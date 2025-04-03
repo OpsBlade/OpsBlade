@@ -103,7 +103,7 @@ func (t *Task) Execute() shared.TaskResult {
 	// Create the issue
 	jiraIssue := jira.Issue{
 		Fields: &jira.IssueFields{
-			Description: t.Description,
+			Description: jiraClientConfig.ResolveTags(t.Description),
 			Type: jira.IssueType{
 				Name: t.IssueType,
 			},
