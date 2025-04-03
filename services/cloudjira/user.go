@@ -5,6 +5,7 @@ package cloudjira
 
 import "fmt"
 
+// GetUser retrieves a user ID by their email address from Jira.
 func (j *CloudJira) GetUser(email string) (string, error) {
 	client, err := j.Client()
 	if err != nil {

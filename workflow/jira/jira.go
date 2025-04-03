@@ -4,6 +4,8 @@
 package jira
 
 import (
+	_ "github.com/OpsBlade/OpsBlade/workflow/jira/issue/attach/file"
 	_ "github.com/OpsBlade/OpsBlade/workflow/jira/issue/check"
+	_ "github.com/OpsBlade/OpsBlade/workflow/jira/issue/comment"
 	_ "github.com/OpsBlade/OpsBlade/workflow/jira/issue/create"
 )
