@@ -57,6 +57,8 @@ The following environment variables are supported:
 * AWS_SECRET_ACCESS_KEY
 * AWS_REGION
 
+Note: If AWS environment variables are not set, the AWS SDK will attempt to load credentials and configuration from ~/.aws. If specifing a profile is required, it must be included at the task level. The AWS region can also optionally be specified at the task level.
+
 ### Slack
 
 * SLACK_WEBHOOK

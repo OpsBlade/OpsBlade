@@ -21,7 +21,6 @@ type Task struct {
 	Env          string             `yaml:"env" json:"env"`                     // Optional file to load into the environment
 	Region       string             `yaml:"region" json:"region"`               // AWS region - allow overriding
 	Profile      string             `yaml:"profile" json:"profile"`             // AWS profile - allow overriding
-	ConfigFile   string             `yaml:"config_file" json:"config_file"`     // AWS config file - allow overriding
 	InstanceID   string             `yaml:"instance_id" json:"instance_id"`     // Instance ID to create AMI from
 	InstanceName string             `yaml:"instance_name" json:"instance_name"` // Name of the AMI
 	Name         string             `yaml:"name" json:"name"`                   // Name of the task
@@ -57,8 +56,7 @@ func (t *Task) Execute() shared.TaskResult {
 	amazonInstance, err := cloudaws.New(
 		cloudaws.WithRegion(t.Region),
 		cloudaws.WithEnvironment(envFile),
-		cloudaws.WithProfile(t.Profile),
-		cloudaws.WithConfigFile(t.ConfigFile))
+		cloudaws.WithProfile(t.Profile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
 	}

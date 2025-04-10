@@ -23,7 +23,6 @@ type Task struct {
 	Env             string                  `yaml:"env" json:"env"`                           // Optional file to load into the environment
 	Region          string                  `yaml:"region" json:"region"`                     // AWS region - allow overriding
 	Profile         string                  `yaml:"profile" json:"profile"`                   // AWS profile - allow overriding
-	ConfigFile      string                  `yaml:"config_file" json:"config_file"`           // AWS config file - allow overriding
 	LaunchTemplates []string                `yaml:"launch_templates" json:"launch_templates"` // Launch Template ID located ASGs
 	SkipMatching    string                  `yaml:"skip_matching" json:"skip_matching"`       // Skip instances that match the launch template
 	Filters         []shared.Filter         `yaml:"filters" json:"filters"`                   // Filters to pass to AWS API
@@ -71,8 +70,7 @@ func (t *Task) Execute() shared.TaskResult {
 	amazonInstance, err := cloudaws.New(
 		cloudaws.WithRegion(t.Region),
 		cloudaws.WithEnvironment(envFile),
-		cloudaws.WithProfile(t.Profile),
-		cloudaws.WithConfigFile(t.ConfigFile))
+		cloudaws.WithProfile(t.Profile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
 	}

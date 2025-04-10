@@ -7,11 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/joho/godotenv"
-	"os"
 )
 
 type CloudAWS struct {
@@ -21,8 +22,6 @@ type CloudAWS struct {
 
 type AWSConfig struct {
 	Profile     string
-	ConfigFile  string
-	CredsFile   string
 	Region      string
 	AccessKey   string
 	SecretKey   string
@@ -60,13 +59,17 @@ func New(options ...Option) (*CloudAWS, error) {
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, "")),
 			config.WithRegion(cfg.Region))
 	} else if cfg.Profile != "" { // If profile is provided, use shared config profile
-		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
-			config.WithSharedConfigProfile(cfg.Profile),
-			config.WithSharedConfigFiles([]string{cfg.ConfigFile, cfg.CredsFile}),
-			config.WithRegion(cfg.Region))
+		if cfg.Region == "" { // If region is set, use it
+			awsCfg, err = config.LoadDefaultConfig(context.TODO(),
+				config.WithSharedConfigProfile(cfg.Profile))
+		} else {
+			awsCfg, err = config.LoadDefaultConfig(context.TODO(),
+				config.WithSharedConfigProfile(cfg.Profile),
+				config.WithRegion(cfg.Region))
+		}
 	} else { // Otherwise, use the default credential provider chain
-		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
-			config.WithRegion(cfg.Region))
+		awsCfg, err = config.LoadDefaultConfig(context.TODO())
+		//config.WithRegion(cfg.Region))
 	}
 
 	// Return an error if unable to configure
@@ -82,23 +85,6 @@ func WithProfile(profile string) Option {
 	return func(cfg *AWSConfig) {
 		if profile != "" {
 			cfg.Profile = profile
-		}
-	}
-}
-
-func WithConfigFile(configFile string) Option {
-	return func(cfg *AWSConfig) {
-		if configFile != "" {
-			cfg.ConfigFile = configFile
-		}
-	}
-}
-
-//goland:noinspection GoUnusedExportedFunction
-func WithCredsFile(credsFile string) Option {
-	return func(cfg *AWSConfig) {
-		if credsFile != "" {
-			cfg.CredsFile = credsFile
 		}
 	}
 }

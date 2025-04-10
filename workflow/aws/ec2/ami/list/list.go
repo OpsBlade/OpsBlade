@@ -14,15 +14,14 @@ import (
 )
 
 type Task struct {
-	Context    shared.TaskContext      `yaml:"context" json:"context"`         // Task context
-	Env        string                  `yaml:"env" json:"env"`                 // Optional file to load into the environment
-	Region     string                  `yaml:"region" json:"region"`           // AWS region - allow overriding
-	Profile    string                  `yaml:"profile" json:"profile"`         // AWS profile - allow overriding
-	ConfigFile string                  `yaml:"config_file" json:"config_file"` // AWS config file - allow overriding
-	Owner      string                  `yaml:"owner" json:"owner"`             // Owner filter to pass to AWS ("self" is often useful)
-	Filters    []shared.Filter         `yaml:"filters" json:"filters"`         // Filters to pass to AWS API
-	Select     []shared.SelectCriteria `yaml:"select" json:"select"`           // Selection criteria to apply to the list of AMIs
-	Fields     []string                `yaml:"fields" json:"fields"`           // List of fields to return as data
+	Context shared.TaskContext      `yaml:"context" json:"context"` // Task context
+	Env     string                  `yaml:"env" json:"env"`         // Optional file to load into the environment
+	Region  string                  `yaml:"region" json:"region"`   // AWS region - allow overriding
+	Profile string                  `yaml:"profile" json:"profile"` // AWS profile - allow overriding
+	Owner   string                  `yaml:"owner" json:"owner"`     // Owner filter to pass to AWS ("self" is often useful)
+	Filters []shared.Filter         `yaml:"filters" json:"filters"` // Filters to pass to AWS API
+	Select  []shared.SelectCriteria `yaml:"select" json:"select"`   // Selection criteria to apply to the list of AMIs
+	Fields  []string                `yaml:"fields" json:"fields"`   // List of fields to return as data
 }
 
 func init() {
@@ -48,8 +47,7 @@ func (t *Task) Execute() shared.TaskResult {
 	amazonInstance, err := cloudaws.New(
 		cloudaws.WithRegion(t.Region),
 		cloudaws.WithEnvironment(envFile),
-		cloudaws.WithProfile(t.Profile),
-		cloudaws.WithConfigFile(t.ConfigFile))
+		cloudaws.WithProfile(t.Profile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
 	}
