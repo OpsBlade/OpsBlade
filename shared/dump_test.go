@@ -37,12 +37,12 @@ func TestDumpTask(t *testing.T) {
 	DumpTask(testTask)
 
 	// Restore stdout
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	// Read captured output
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
 	// Verify that the output does not contain the Instructions data

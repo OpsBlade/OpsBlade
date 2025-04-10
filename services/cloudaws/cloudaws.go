@@ -94,6 +94,7 @@ func WithConfigFile(configFile string) Option {
 	}
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func WithCredsFile(credsFile string) Option {
 	return func(cfg *AWSConfig) {
 		if credsFile != "" {
