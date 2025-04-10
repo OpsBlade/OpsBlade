@@ -14,7 +14,7 @@ import (
 
 type Task struct {
 	Context            shared.TaskContext `yaml:"context" json:"context"`                         // Task context
-	Credentials        shared.Credentials `yaml:"credentials" json:"credentials"`                 // Allow override of credentials
+	Env                string             `yaml:"env" json:"env"`                                 // Optional file to load into the environment
 	IssueId            string             `yaml:"issue_id" json:"issue_id"`                       // Jira Issue ID
 	RequiredStatus     string             `yaml:"required_status" json:"required_status"`         // State required to pass
 	RequiredResolution string             `yaml:"required_resolution" json:"required_resolution"` // Resolution required to pass
@@ -40,16 +40,11 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
-
 	data["check_jira_issue_id"] = t.IssueId
 	data["check_jira_issue_required_status"] = t.RequiredStatus
 	data["check_jira_issue_required_resolution"] = t.RequiredResolution
 
-	jiraClientConfig, err := cloudjira.New(
-		cloudjira.WithUsername(creds.JIRA.Username),
-		cloudjira.WithToken(creds.JIRA.Password),
-		cloudjira.WithBaseURL(creds.JIRA.BaseURL))
+	jiraClientConfig, err := cloudjira.New(cloudjira.WithEnvironment(shared.SelectEnv(t.Env, t.Context.Env)))
 	if err != nil {
 		return t.Context.Error("failed to create JIRA client", err)
 	}

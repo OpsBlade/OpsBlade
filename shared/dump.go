@@ -9,53 +9,76 @@ import (
 	"reflect"
 )
 
-// DumpTask pretty-prints the passed task structure, extracting some data from the TaskContext field
-// but suppressing the Context and Credentials fields to avoid leaking sensitive information
+// DumpTask pretty-prints the passed task structure and drops the Context.Instructions field
 func DumpTask(s any) {
-	v := reflect.ValueOf(s)
+	// Create a copy of the task with Context.Instructions removed
+	taskCopy := copyTaskWithoutInstructions(s)
 
-	// Ensure it's a struct or a pointer to a struct
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem() // Dereference pointer
+	// Encapsulate to be JSON parser friendly
+	data := map[string]any{"message_type": "task_dump", "task_dump": taskCopy}
+	fmt.Println(Dump(data) + "\n")
+}
+
+// copyTaskWithoutInstructions creates a deep copy of a task struct but with Context.Instructions set to nil
+func copyTaskWithoutInstructions(s any) any {
+	// If nil, return nil
+	if s == nil {
+		return nil
 	}
 
-	if v.Kind() != reflect.Struct {
-		fmt.Println("Not a struct")
-		return
+	// Get the value of s
+	val := reflect.ValueOf(s)
+
+	// If it's not a pointer, return as is (can't be a task struct)
+	if val.Kind() != reflect.Ptr {
+		return s
 	}
 
-	// Get the field named "Context"
-	field := v.FieldByName("Context")
-	if !field.IsValid() {
-		fmt.Println("No Context field")
-		return
+	// Dereference the pointer
+	val = val.Elem()
+
+	// If it's not a struct, return as is (can't be a task struct)
+	if val.Kind() != reflect.Struct {
+		return s
 	}
 
-	// Perform type assertion to TaskContext
-	taskContext, ok := field.Interface().(TaskContext)
-	if !ok {
-		fmt.Println("Context field is not of type TaskContext")
-		return
-	}
+	// Create a new struct of the same type
+	newVal := reflect.New(val.Type())
 
-	fmt.Printf("- Dumping %s\n", taskContext.String())
-	fmt.Printf("Debug:  %t\n", taskContext.Debug)
-	fmt.Printf("DryRun: %t\n", taskContext.DryRun)
+	// Copy all fields from the original struct to the new one
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		newField := newVal.Elem().Field(i)
 
-	// Create a copy of the struct without the Context field
-	//dumpData := reflect.New(v.Type()).Elem()
-	dumpData := make(map[string]any)
-	for i := 0; i < v.NumField(); i++ {
-		fieldName := v.Type().Field(i).Name
-		fieldValue := v.Field(i).Interface()
-		if fieldName == "Context" || fieldName == "Credentials" {
-			dumpData[fieldName] = "(field suppressed)"
-		} else {
-			dumpData[fieldName] = fieldValue
+		// Check if this field is named "Context"
+		if val.Type().Field(i).Name == "Context" && field.Kind() == reflect.Struct {
+			// Copy the Context field but clear Instructions
+			copyContextWithoutInstructions(field, newField)
+		} else if newField.CanSet() {
+			newField.Set(field)
 		}
 	}
 
-	fmt.Println(Dump(dumpData) + "\n")
+	return newVal.Interface()
+}
+
+// copyContextWithoutInstructions copies a Context struct but sets Instructions to nil
+func copyContextWithoutInstructions(src, dst reflect.Value) {
+	// Copy all fields from src to dst
+	for i := 0; i < src.NumField(); i++ {
+		srcField := src.Field(i)
+		dstField := dst.Field(i)
+
+		// If this is the Instructions field, set it to empty
+		if src.Type().Field(i).Name == "Instructions" {
+			// Set to empty byte slice if it's a byte slice
+			if srcField.Kind() == reflect.Slice && srcField.Type().Elem().Kind() == reflect.Uint8 {
+				dstField.Set(reflect.ValueOf([]byte{}))
+			}
+		} else if dstField.CanSet() {
+			dstField.Set(srcField)
+		}
+	}
 }
 
 // Dump pretty-prints the passed structure

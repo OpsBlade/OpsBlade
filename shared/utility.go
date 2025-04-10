@@ -14,6 +14,8 @@ func TrimTrailingNewlines(r string) string {
 
 // OneField accepts any structure and returns true if at least one field is set
 // to a non-zero, non-empty, or true value.
+//
+//goland:noinspection GoUnusedExportedFunction
 func OneField(s any) bool {
 	v := reflect.ValueOf(s)
 	for i := 0; i < v.NumField(); i++ {

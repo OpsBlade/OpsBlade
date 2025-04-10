@@ -8,6 +8,18 @@ OneBlade executes tasks in sequence from a YAML file. A sample is included as ex
 
 Each task is coded as a separate Go package in the workflow directory. Please refer to workflow/example/example.go for an example of how tasks work and how to add new ones.
 
+## **ATTENTION: BREAKING CONFIG CHANGE in 0.1.8**
+
+OpsBlade 0.1.8 has a significant change in the configuration subsystem. While the previous system was flexible, in retrospect allowing users to load configuration information from the yaml file or variables was a mistake. It made it too easy for users who version control their yaml files to accidentally commit credentials to a repository and it was not possible to ensure that credentials did not appear in debug output.
+
+Credentials have now been entirely removed from the configuration file and replaced with "env:" at both the file and task level. If "env" is specified at the task level, the file it points to will be loaded into the environment by the appropriate service module. If "env" is not specified at the task level, the file level "env" (if specified) will be loaded.
+
+Some service modules (AWS for example) will fall back to their default configuration files if no environment file is specified. Others, such as Slack and Jira will return an error.
+
+Please see below for a list of supported environment variables.
+
+Users may wish to set `dryrun: true` at the file level to verify that credentials are loaded as expected.
+
 ## Contributions
 
 PRs and Issues are welcome, as is helping with testing and documentation. Please be patient, this tool is not how I earn living.
@@ -32,6 +44,32 @@ Users who intend to compile and run on different computers may wish to set CGO_E
 CGO_ENABLED=0 go build -o opsblade
 ```
 And like most programs written in Go, cross-compilation using GOOS and GOARCH is available.
+
+## Use
+
+The yaml file consists of some global settings and a list of tasks. The task `name` is arbitrary and are intended for human use only. The `task` field is matched against the task registry and therefore must match a task identifier of an included module from workflow/. If the task identifier is not found, a fatal error occurs.
+
+The following environment variables are supported:
+
+### AWS
+
+* AWS_ACCESS_KEY_ID
+* AWS_SECRET_ACCESS_KEY
+* AWS_REGION
+
+Note: If AWS environment variables are not set, the AWS SDK will attempt to load credentials and configuration from ~/.aws. If specifing a profile is required, it must be included at the task level. The AWS region can also optionally be specified at the task level.
+
+### Slack
+
+* SLACK_WEBHOOK
+
+Note: To simplify sending messages to more than one slack channel, the slack_send task has an optional `env_suffix` field. If set, it will be appended to the SLACK_WEBHOOK environment variable. For example, `env_suffix: _DEV` will cause the Slack service to retrieve SLACK_WEBHOOK_DEV from the environment.
+
+### Jira
+
+* JIRA_USER
+* JIRA_TOKEN
+* JIRA_URL
 
 ## Copyright and license
 

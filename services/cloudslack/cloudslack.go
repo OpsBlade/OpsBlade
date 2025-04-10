@@ -6,7 +6,6 @@ package cloudslack
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -16,32 +15,34 @@ type CloudSlack struct {
 }
 
 type SlackConfig struct {
-	Webhook string
-	Debug   bool
+	Env       string
+	EnvSuffix string
+	Webhook   string
+	Debug     bool
 }
 
 type Option func(*SlackConfig)
 
 func New(options ...Option) (*CloudSlack, error) {
 
-	// Check to see if the environment is already loaded
-	if os.Getenv("SLACK_WEBHOOK") == "" {
-		// Load environment variables from the user's home/.slack file if it exists
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			slackFilePath := filepath.Join(homeDir, ".slack")
-			_ = godotenv.Load(slackFilePath)
+	cfg := &SlackConfig{Debug: false}
+
+	// Apply provided options
+	for _, opt := range options {
+		opt(cfg)
+	}
+
+	if cfg.Env != "" {
+		err := godotenv.Load(cfg.Env)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	// Initialize SlackConfig with default values from environment variables
-	cfg := &SlackConfig{
-		Webhook: os.Getenv("SLACK_WEBHOOK"),
-		Debug:   false}
-
-	// Apply user-provided options to override default values
-	for _, opt := range options {
-		opt(cfg)
+	if cfg.EnvSuffix != "" {
+		cfg.Webhook = os.Getenv("SLACK_WEBHOOK" + cfg.EnvSuffix)
+	} else {
+		cfg.Webhook = os.Getenv("SLACK_WEBHOOK")
 	}
 
 	// Validate that required fields are set
@@ -55,10 +56,18 @@ func New(options ...Option) (*CloudSlack, error) {
 	}, nil
 }
 
-func WithWebhook(webhook string) Option {
+func WithEnvironment(env string) Option {
 	return func(cfg *SlackConfig) {
-		if webhook != "" {
-			cfg.Webhook = webhook
+		if env != "" {
+			cfg.Env = env
+		}
+	}
+}
+
+func WithEnvSuffix(suffix string) Option {
+	return func(cfg *SlackConfig) {
+		if suffix != "" {
+			cfg.EnvSuffix = suffix
 		}
 	}
 }

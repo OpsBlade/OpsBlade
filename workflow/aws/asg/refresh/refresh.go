@@ -20,7 +20,9 @@ import (
 
 type Task struct {
 	Context         shared.TaskContext      `yaml:"context" json:"context"`                   // Task context
-	Credentials     shared.Credentials      `yaml:"credentials" json:"credentials"`           // Allow override of credentials
+	Env             string                  `yaml:"env" json:"env"`                           // Optional file to load into the environment
+	Region          string                  `yaml:"region" json:"region"`                     // AWS region - allow overriding
+	Profile         string                  `yaml:"profile" json:"profile"`                   // AWS profile - allow overriding
 	LaunchTemplates []string                `yaml:"launch_templates" json:"launch_templates"` // Launch Template ID located ASGs
 	SkipMatching    string                  `yaml:"skip_matching" json:"skip_matching"`       // Skip instances that match the launch template
 	Filters         []shared.Filter         `yaml:"filters" json:"filters"`                   // Filters to pass to AWS API
@@ -62,16 +64,13 @@ func (t *Task) Execute() shared.TaskResult {
 		}
 	}
 
-	// Resolve credentials with priority to task credentials, then context credentials
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
+	// Resolve environment file
+	envFile := shared.SelectEnv(t.Env, t.Context.Env)
 
 	amazonInstance, err := cloudaws.New(
-		cloudaws.WithRegion(creds.AWS.Region),
-		cloudaws.WithAccessKey(creds.AWS.AccessKey),
-		cloudaws.WithSecretKey(creds.AWS.SecretKey),
-		cloudaws.WithProfile(creds.AWS.Profile),
-		cloudaws.WithConfigFile(creds.AWS.ConfigFile),
-		cloudaws.WithCredsFile(creds.AWS.CredsFile))
+		cloudaws.WithRegion(t.Region),
+		cloudaws.WithEnvironment(envFile),
+		cloudaws.WithProfile(t.Profile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
 	}

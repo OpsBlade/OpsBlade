@@ -14,10 +14,10 @@ import (
 )
 
 type Task struct {
-	Context     shared.TaskContext `yaml:"context" json:"context"`         // Task context
-	Credentials shared.Credentials `yaml:"credentials" json:"credentials"` // Allow override of credentials
-	IssueId     string             `yaml:"issue_id" json:"issue_id"`       // Jira Issue ID
-	Comment     string             `yaml:"comment" json:"comment"`         // Comment to add
+	Context shared.TaskContext `yaml:"context" json:"context"`   // Task context
+	Env     string             `yaml:"env" json:"env"`           // Optional file to load into the environment
+	IssueId string             `yaml:"issue_id" json:"issue_id"` // Jira Issue ID
+	Comment string             `yaml:"comment" json:"comment"`   // Comment to add
 }
 
 func init() {
@@ -43,12 +43,7 @@ func (t *Task) Execute() shared.TaskResult {
 		return t.Context.Error("issue_id and comment are required", nil)
 	}
 
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
-
-	jiraClientConfig, err := cloudjira.New(
-		cloudjira.WithUsername(creds.JIRA.Username),
-		cloudjira.WithToken(creds.JIRA.Password),
-		cloudjira.WithBaseURL(creds.JIRA.BaseURL))
+	jiraClientConfig, err := cloudjira.New(cloudjira.WithEnvironment(shared.SelectEnv(t.Env, t.Context.Env)))
 	if err != nil {
 		return t.Context.Error("failed to create JIRA client", err)
 	}

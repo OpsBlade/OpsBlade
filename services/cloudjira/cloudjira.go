@@ -5,9 +5,9 @@ package cloudjira
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
-	"path/filepath"
+
+	"github.com/joho/godotenv"
 )
 
 type CloudJira struct {
@@ -15,36 +15,34 @@ type CloudJira struct {
 }
 
 type JiraConfig struct {
-	Username string
-	Token    string
-	BaseURL  string
+	Environment string
+	Username    string
+	Token       string
+	BaseURL     string
 }
 
 type Option func(*JiraConfig)
 
 func New(options ...Option) (*CloudJira, error) {
-
-	// Check to see if the environment is already loaded
-	if os.Getenv("JIRA_USER") == "" || os.Getenv("JIRA_TOKEN") == "" || os.Getenv("JIRA_URL") == "" {
-		// Load environment variables from the user's home/.jira file if it exists
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			jiraFilePath := filepath.Join(homeDir, ".jira")
-			_ = godotenv.Load(jiraFilePath)
-		}
-	}
-
-	// Initialize JiraConfig with default values from environment variables
-	cfg := &JiraConfig{
-		Username: os.Getenv("JIRA_USER"),
-		Token:    os.Getenv("JIRA_TOKEN"),
-		BaseURL:  os.Getenv("JIRA_URL"),
-	}
+	cfg := &JiraConfig{}
 
 	// Apply user-provided options to override default values
 	for _, opt := range options {
 		opt(cfg)
 	}
+
+	// If an environment file is provided, load it
+	if cfg.Environment != "" {
+		err := godotenv.Load(cfg.Environment)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Load from environment variables
+	cfg.Username = os.Getenv("JIRA_USER")
+	cfg.Token = os.Getenv("JIRA_TOKEN")
+	cfg.BaseURL = os.Getenv("JIRA_URL")
 
 	// Validate that required fields are set
 	if cfg.Username == "" || cfg.Token == "" || cfg.BaseURL == "" {
@@ -57,26 +55,10 @@ func New(options ...Option) (*CloudJira, error) {
 	}, nil
 }
 
-func WithUsername(username string) Option {
+func WithEnvironment(env string) Option {
 	return func(cfg *JiraConfig) {
-		if username != "" {
-			cfg.Username = username
-		}
-	}
-}
-
-func WithToken(token string) Option {
-	return func(cfg *JiraConfig) {
-		if token != "" {
-			cfg.Token = token
-		}
-	}
-}
-
-func WithBaseURL(url string) Option {
-	return func(cfg *JiraConfig) {
-		if url != "" {
-			cfg.BaseURL = url
+		if env != "" {
+			cfg.Environment = env
 		}
 	}
 }

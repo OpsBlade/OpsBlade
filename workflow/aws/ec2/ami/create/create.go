@@ -18,7 +18,9 @@ import (
 
 type Task struct {
 	Context      shared.TaskContext `yaml:"context" json:"context"`             // Task context
-	Credentials  shared.Credentials `yaml:"credentials" json:"credentials"`     // Allow override of credentials
+	Env          string             `yaml:"env" json:"env"`                     // Optional file to load into the environment
+	Region       string             `yaml:"region" json:"region"`               // AWS region - allow overriding
+	Profile      string             `yaml:"profile" json:"profile"`             // AWS profile - allow overriding
 	InstanceID   string             `yaml:"instance_id" json:"instance_id"`     // Instance ID to create AMI from
 	InstanceName string             `yaml:"instance_name" json:"instance_name"` // Name of the AMI
 	Name         string             `yaml:"name" json:"name"`                   // Name of the task
@@ -48,16 +50,13 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	// Resolve credentials with priority to task credentials, then context credentials
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
+	// Resolve environment file
+	envFile := shared.SelectEnv(t.Env, t.Context.Env)
 
 	amazonInstance, err := cloudaws.New(
-		cloudaws.WithRegion(creds.AWS.Region),
-		cloudaws.WithAccessKey(creds.AWS.AccessKey),
-		cloudaws.WithSecretKey(creds.AWS.SecretKey),
-		cloudaws.WithProfile(creds.AWS.Profile),
-		cloudaws.WithConfigFile(creds.AWS.ConfigFile),
-		cloudaws.WithCredsFile(creds.AWS.CredsFile))
+		cloudaws.WithRegion(t.Region),
+		cloudaws.WithEnvironment(envFile),
+		cloudaws.WithProfile(t.Profile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
 	}

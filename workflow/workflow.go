@@ -6,7 +6,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 	"io"
 	"os"
@@ -31,13 +30,12 @@ import (
 )
 
 type Workflow struct {
-	Credentials shared.Credentials `yaml:"credentials"`
-	Environment string             `yaml:"environment"`
-	DryRun      bool               `yaml:"dryrun"`
-	Debug       bool               `yaml:"debug"`
-	JSON        bool               `yaml:"json"`
-	Tasks       []map[string]any   `yaml:"tasks"`
-	callback    shared.Callback    `yaml:"-"`
+	Env      string           `yaml:"env"`
+	DryRun   bool             `yaml:"dryrun"`
+	Debug    bool             `yaml:"debug"`
+	JSON     bool             `yaml:"json"`
+	Tasks    []map[string]any `yaml:"tasks"`
+	callback shared.Callback  `yaml:"-"`
 }
 
 // Option is used for the golang options pattern
@@ -46,27 +44,17 @@ type Option func(*Workflow)
 // New creates a new Workflow applying any provided options
 func New(options ...Option) *Workflow {
 	w := &Workflow{
-		Credentials: shared.Credentials{},
-		DryRun:      false,
-		Debug:       false,
-		JSON:        false,
-		Environment: "",
-		callback:    nil,
-		Tasks:       make([]map[string]any, 0),
+		DryRun:   false,
+		Debug:    false,
+		JSON:     false,
+		Env:      "",
+		callback: nil,
+		Tasks:    make([]map[string]any, 0),
 	}
 	for _, opt := range options {
 		opt(w)
 	}
 	return w
-}
-
-// WithCredentials sets Credentials on the Workflow
-//
-//goland:noinspection GoUnusedExportedFunction
-func WithCredentials(creds shared.Credentials) Option {
-	return func(w *Workflow) {
-		w.Credentials = creds
-	}
 }
 
 // WithCallback sets a callback function on the Workflow
@@ -135,13 +123,6 @@ func (w *Workflow) Load(filename string) error {
 	if err = yaml.Unmarshal(data, &w); err != nil {
 		return fmt.Errorf("deserialization error: %w", err)
 	}
-
-	// If the environment is set, load the environment variables
-	if w.Environment != "" {
-		if err = godotenv.Load(w.Environment); err != nil {
-			return fmt.Errorf("unable to load environment from %s: %w", w.Environment, err)
-		}
-	}
 	return nil
 }
 
@@ -183,9 +164,9 @@ func (w *Workflow) Execute() bool {
 	var err error
 	var count int
 
-	// Create a task context
+	// Create a task context, defaulting to global file settings
 	var taskContext = shared.TaskContext{
-		Credentials:  &w.Credentials,
+		Env:          w.Env,
 		DryRun:       w.DryRun,
 		Debug:        w.Debug,
 		Instructions: make([]byte, 0),
