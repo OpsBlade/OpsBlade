@@ -68,8 +68,12 @@ func New(options ...Option) (*CloudAWS, error) {
 				config.WithRegion(cfg.Region))
 		}
 	} else { // Otherwise, use the default credential provider chain
-		awsCfg, err = config.LoadDefaultConfig(context.TODO())
-		//config.WithRegion(cfg.Region))
+		if cfg.Region == "" { // If region is set, use it
+			awsCfg, err = config.LoadDefaultConfig(context.TODO())
+		} else {
+			awsCfg, err = config.LoadDefaultConfig(context.TODO(),
+				config.WithRegion(cfg.Region))
+		}
 	}
 
 	// Return an error if unable to configure
