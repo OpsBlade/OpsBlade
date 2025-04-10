@@ -1,10 +1,7 @@
 dryrun: false
 debug: false
 json: false
-credentials:
-  example:
-    user: nobody
-    pass: nothing
+env: /home/user/.env
 
 tasks:
     # Variables are a name value pair. The name must be a string. Enclosing string values in quotes
