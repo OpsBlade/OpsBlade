@@ -7,12 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/joho/godotenv"
+	"os"
 )
 
 type CloudAWS struct {
@@ -21,33 +20,19 @@ type CloudAWS struct {
 }
 
 type AWSConfig struct {
-	Profile    string
-	ConfigFile string
-	CredsFile  string
-	Region     string
-	AccessKey  string
-	SecretKey  string
+	Profile     string
+	ConfigFile  string
+	CredsFile   string
+	Region      string
+	AccessKey   string
+	SecretKey   string
+	Environment string
 }
 
 type Option func(*AWSConfig)
 
 func New(options ...Option) (*CloudAWS, error) {
-	var cfg *AWSConfig
-
-	// Check to see if the environment is already loaded
-	if os.Getenv("AWS_ACCESS_KEY_ID") == "" || os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
-		// Initialize AWSConfig with default paths for config and credentials files
-		cfg = &AWSConfig{
-			ConfigFile: filepath.Join(os.Getenv("HOME"), ".aws", "config"),
-			CredsFile:  filepath.Join(os.Getenv("HOME"), ".aws", "credentials"),
-		}
-	} else {
-		// Initialize AWSConfig with default values from environment variables
-		cfg = &AWSConfig{
-			AccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
-			SecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
-			Region:    os.Getenv("AWS_REGION")}
-	}
+	cfg := &AWSConfig{}
 
 	// Apply user-provided options to override default values
 	for _, opt := range options {
@@ -57,25 +42,34 @@ func New(options ...Option) (*CloudAWS, error) {
 	var awsCfg aws.Config
 	var err error
 
-	// If access key and secret key are provided, use static credentials
+	// If an environment file is provided, load it. If not, load from the default AWS files
+	if cfg.Environment != "" {
+		err = godotenv.Load(cfg.Environment)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Attempt to load from the environment
+	cfg.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
+	cfg.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+	cfg.Region = os.Getenv("AWS_REGION")
+
 	if cfg.AccessKey != "" && cfg.SecretKey != "" {
 		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, "")),
-			config.WithRegion(cfg.Region),
-		)
+			config.WithRegion(cfg.Region))
 	} else if cfg.Profile != "" { // If profile is provided, use shared config profile
 		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
 			config.WithSharedConfigProfile(cfg.Profile),
 			config.WithSharedConfigFiles([]string{cfg.ConfigFile, cfg.CredsFile}),
-			config.WithRegion(cfg.Region),
-		)
+			config.WithRegion(cfg.Region))
 	} else { // Otherwise, use the default credential provider chain
 		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
-			config.WithRegion(cfg.Region),
-		)
+			config.WithRegion(cfg.Region))
 	}
 
-	// Return an error if loading the configuration fails
+	// Return an error if unable to configure
 	if err != nil {
 		return nil, err
 	}
@@ -116,18 +110,10 @@ func WithRegion(region string) Option {
 	}
 }
 
-func WithAccessKey(accessKey string) Option {
+func WithEnvironment(env string) Option {
 	return func(cfg *AWSConfig) {
-		if accessKey != "" {
-			cfg.AccessKey = accessKey
-		}
-	}
-}
-
-func WithSecretKey(secretKey string) Option {
-	return func(cfg *AWSConfig) {
-		if secretKey != "" {
-			cfg.SecretKey = secretKey
+		if env != "" {
+			cfg.Environment = env
 		}
 	}
 }

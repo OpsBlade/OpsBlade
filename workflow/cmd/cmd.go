@@ -11,11 +11,10 @@ import (
 )
 
 type Task struct {
-	Context     shared.TaskContext `yaml:"context" json:"context"`         // Task context
-	Credentials shared.Credentials `yaml:"credentials" json:"credentials"` // Allow override of credentials
-	Cmd         string             `yaml:"cmd" json:"cmd"`                 // Subject of the message
-	Args        []string           `yaml:"args" json:"args"`               // Body of the message
-	NoFail      bool               `yaml:"no_fail" json:"no_fail"`         // Do not fail if the command returns a non-zero exit code
+	Context shared.TaskContext `yaml:"context" json:"context"` // Task context
+	Cmd     string             `yaml:"cmd" json:"cmd"`         // Subject of the message
+	Args    []string           `yaml:"args" json:"args"`       // Body of the message
+	NoFail  bool               `yaml:"no_fail" json:"no_fail"` // Do not fail if the command returns a non-zero exit code
 }
 
 func init() {

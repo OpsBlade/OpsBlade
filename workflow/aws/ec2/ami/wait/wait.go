@@ -15,10 +15,13 @@ import (
 )
 
 type Task struct {
-	Context     shared.TaskContext `yaml:"context" json:"context"`         // Task context
-	Credentials shared.Credentials `yaml:"credentials" json:"credentials"` // Allow override of credentials
-	ImageId     string             `yaml:"image_id" json:"image_id"`       // Instance ID to create AMI from
-	Limit       int                `yaml:"limit" json:"limit"`             // Number of seconds to wait
+	Context    shared.TaskContext `yaml:"context" json:"context"`         // Task context
+	Env        string             `yaml:"env" json:"env"`                 // Optional file to load into the environment
+	Region     string             `yaml:"region" json:"region"`           // AWS region - allow overriding
+	Profile    string             `yaml:"profile" json:"profile"`         // AWS profile - allow overriding
+	ConfigFile string             `yaml:"config_file" json:"config_file"` // AWS config file - allow overriding
+	ImageId    string             `yaml:"image_id" json:"image_id"`       // Instance ID to create AMI from
+	Limit      int                `yaml:"limit" json:"limit"`             // Number of seconds to wait
 }
 
 func init() {
@@ -46,14 +49,14 @@ func (t *Task) Execute() shared.TaskResult {
 	}
 
 	// Resolve credentials with priority to task credentials, then context credentials
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
+	// Resolve environment file
+	envFile := shared.SelectEnv(t.Env, t.Context.Env)
+
 	amazonInstance, err := cloudaws.New(
-		cloudaws.WithRegion(creds.AWS.Region),
-		cloudaws.WithAccessKey(creds.AWS.AccessKey),
-		cloudaws.WithSecretKey(creds.AWS.SecretKey),
-		cloudaws.WithProfile(creds.AWS.Profile),
-		cloudaws.WithConfigFile(creds.AWS.ConfigFile),
-		cloudaws.WithCredsFile(creds.AWS.CredsFile))
+		cloudaws.WithRegion(t.Region),
+		cloudaws.WithEnvironment(envFile),
+		cloudaws.WithProfile(t.Profile),
+		cloudaws.WithConfigFile(t.ConfigFile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
 	}

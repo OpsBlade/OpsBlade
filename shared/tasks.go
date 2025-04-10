@@ -12,13 +12,13 @@ type Task interface {
 }
 
 type TaskContext struct {
-	Credentials  *Credentials `json:"credentials,omitempty"` // Task credentials
-	DryRun       bool         `json:"dryrun,omitempty"`      // Dry run mode
-	Debug        bool         `json:"debug,omitempty"`       // Debug mode
-	Name         string       `json:"name,omitempty"`        // Task name
-	Task         string       `json:"task"`                  // Task type
-	Sequence     int          `json:"sequence"`              // Task sequence number
-	Instructions []byte       `json:"instructions"`          // Task instructions
+	Env          string `json:"env,omitempty"`          // Task environment (overrides global)
+	DryRun       bool   `json:"dryrun,omitempty"`       // Dry run mode
+	Debug        bool   `json:"debug,omitempty"`        // Debug mode
+	Name         string `json:"name,omitempty"`         // Task name
+	Task         string `json:"task"`                   // Task type
+	Sequence     int    `json:"sequence"`               // Task sequence number
+	Instructions []byte `json:"instructions,omitempty"` // Task instructions
 }
 
 var TaskRegistry = make(map[string]func(TaskContext) Task)

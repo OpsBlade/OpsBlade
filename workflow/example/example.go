@@ -34,11 +34,12 @@ import (
 // supporting functions make using the shared types advantageous.
 
 type Task struct {
-	// Task context - this contains the instructions for the task
+	// Task context - this contains the instructions for the task.
 	Context shared.TaskContext `yaml:"context" json:"context"`
 
-	// Credentials are task specific and could be used to override the global credentials
-	Credentials shared.Credentials `yaml:"credentials" json:"credentials"`
+	// Env is optional and sepcifies an environment file to load. This is used for credentials and
+	// similar configuration information.
+	Env string `yaml:"env" json:"env"`
 
 	// Filters are intended to be passed into an API. They are name-value pairs. Note that the values are a
 	// slice (list) for compatibility with the AWS API.
@@ -88,19 +89,14 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	// Resolve credentials with priority to task credentials, then context credentials
-	// This allows credentials to be overridden at the task level.
-	// While not optimal, note that t.Context.Credentials contains all credentials for all services
-	// used by the current workflow. Be careful not to dump them. The helper functions to dump tasks
-	// for debugging suppress the credentials
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
+	// Resolve environment file (if any) to load. Preference is given to the task's environment file.
+	env := shared.SelectEnv(t.Env, t.Context.Env)
 
 	// At this point, we have our task information deserialized, variables resolved, and credentials resolved.
 	// It's time to perform the actual task. Note that if your task wishes to call various cloud APIs, there are
 	// helper functions in services/cloud<name> that can be used to instantiate clients. The "cloud" prefix is
 	// used to avoid conflicts with various packages/SDKs.
-
-	someData, err := mockListTask(creds.Example, t.Filters)
+	someData, err := mockGetData(env, t.Filters)
 	if err != nil {
 		// Context has a helper function to return an error as a shared.TaskResult
 		return t.Context.Error("failed to obtain mock list", err)
@@ -147,9 +143,9 @@ type mockTaskResponse struct {
 	SomeList []map[string]any `json:"someList"`
 }
 
-// mockListTask is a mock function that simulates an API call. In this example we'll ignore credentials and
+// mockGetData is a mock function that simulates an API call. In this example we'll ignore credentials and
 // not use the filters.
-func mockListTask(_ shared.ExampleCreds, _ []shared.Filter) (mockTaskResponse, error) {
+func mockGetData(_ string, _ []shared.Filter) (mockTaskResponse, error) {
 	return mockTaskResponse{
 		SomeList: []map[string]any{
 			{"name": "item1", "id": 1, "paid": "yes", "tags": map[string]string{"tag1": "tag_value1", "tag2": "yes"}},

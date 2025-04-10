@@ -11,10 +11,10 @@ import (
 )
 
 type Task struct {
-	Context     shared.TaskContext `yaml:"context" json:"context"`         // Task context
-	Credentials shared.Credentials `yaml:"credentials" json:"credentials"` // Allow override of credentials
-	Subject     string             `yaml:"subject" json:"subject"`         // Subject of the message
-	Body        string             `yaml:"body" json:"body"`               // Body of the message
+	Context shared.TaskContext `yaml:"context" json:"context"` // Task context
+	Env     string             `yaml:"env" json:"env"`         // Optional file to load into the environment
+	Subject string             `yaml:"subject" json:"subject"` // Subject of the message
+	Body    string             `yaml:"body" json:"body"`       // Body of the message
 }
 
 func init() {
@@ -39,12 +39,11 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	// Resolve credentials with priority to task credentials, then context credentials
-	creds := shared.NewCredentials(t.Credentials, *t.Context.Credentials)
-
 	// Create a new Slack client - note that it will try to read a webhook from the environment
 	// and a ~/.slack file, but passing a webhook will override it
-	s, err := cloudslack.New(cloudslack.WithWebhook(creds.Slack.Webhook), cloudslack.WithDebug(t.Context.Debug))
+	s, err := cloudslack.New(
+		cloudslack.WithEnvironment(shared.SelectEnv(t.Env, t.Context.Env)),
+		cloudslack.WithDebug(t.Context.Debug))
 	if err != nil {
 		return t.Context.Error("failed to create Slack client", err)
 	}
