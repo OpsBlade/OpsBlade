@@ -61,6 +61,8 @@ The following environment variables are supported:
 
 * SLACK_WEBHOOK
 
+Note: To simplify sending messages to more than one slack channel, the slack_send task has an optional `env_suffix` field. If set, it will be appended to the SLACK_WEBHOOK environment variable. For example, `env_suffix: _DEV` will cause the Slack service to retrieve SLACK_WEBHOOK_DEV from the environment.
+
 ### Jira
 
 * JIRA_USER

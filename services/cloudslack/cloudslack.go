@@ -5,8 +5,9 @@ package cloudslack
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type CloudSlack struct {
@@ -14,9 +15,10 @@ type CloudSlack struct {
 }
 
 type SlackConfig struct {
-	Env     string
-	Webhook string
-	Debug   bool
+	Env       string
+	EnvSuffix string
+	Webhook   string
+	Debug     bool
 }
 
 type Option func(*SlackConfig)
@@ -37,8 +39,11 @@ func New(options ...Option) (*CloudSlack, error) {
 		}
 	}
 
-	// Load the webhook from the environment
-	cfg.Webhook = os.Getenv("SLACK_WEBHOOK")
+	if cfg.EnvSuffix != "" {
+		cfg.Webhook = os.Getenv("SLACK_WEBHOOK" + cfg.EnvSuffix)
+	} else {
+		cfg.Webhook = os.Getenv("SLACK_WEBHOOK")
+	}
 
 	// Validate that required fields are set
 	if cfg.Webhook == "" {
@@ -55,6 +60,14 @@ func WithEnvironment(env string) Option {
 	return func(cfg *SlackConfig) {
 		if env != "" {
 			cfg.Env = env
+		}
+	}
+}
+
+func WithEnvSuffix(suffix string) Option {
+	return func(cfg *SlackConfig) {
+		if suffix != "" {
+			cfg.EnvSuffix = suffix
 		}
 	}
 }

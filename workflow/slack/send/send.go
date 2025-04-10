@@ -11,10 +11,11 @@ import (
 )
 
 type Task struct {
-	Context shared.TaskContext `yaml:"context" json:"context"` // Task context
-	Env     string             `yaml:"env" json:"env"`         // Optional file to load into the environment
-	Subject string             `yaml:"subject" json:"subject"` // Subject of the message
-	Body    string             `yaml:"body" json:"body"`       // Body of the message
+	Context   shared.TaskContext `yaml:"context" json:"context"`       // Task context
+	Env       string             `yaml:"env" json:"env"`               // Optional file to load into the environment
+	EnvSuffix string             `yaml:"env_suffix" json:"env_suffix"` // Optional suffix to append to SLACK_HOOK to allow more than one
+	Subject   string             `yaml:"subject" json:"subject"`       // Subject of the message
+	Body      string             `yaml:"body" json:"body"`             // Body of the message
 }
 
 func init() {
@@ -43,6 +44,7 @@ func (t *Task) Execute() shared.TaskResult {
 	// and a ~/.slack file, but passing a webhook will override it
 	s, err := cloudslack.New(
 		cloudslack.WithEnvironment(shared.SelectEnv(t.Env, t.Context.Env)),
+		cloudslack.WithEnvSuffix(t.EnvSuffix),
 		cloudslack.WithDebug(t.Context.Debug))
 	if err != nil {
 		return t.Context.Error("failed to create Slack client", err)
