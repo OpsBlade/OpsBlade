@@ -5,5 +5,6 @@ package asg
 
 import (
 	_ "github.com/OpsBlade/OpsBlade/workflow/aws/asg/list"
-	_ "github.com/OpsBlade/OpsBlade/workflow/aws/asg/refresh"
+	_ "github.com/OpsBlade/OpsBlade/workflow/aws/asg/refresh/describe"
+	_ "github.com/OpsBlade/OpsBlade/workflow/aws/asg/refresh/start"
 )
