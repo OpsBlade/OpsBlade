@@ -85,7 +85,7 @@ func (t *Task) Execute() shared.TaskResult {
 				return t.Context.Error("error describing autoscaling groups", err)
 			}
 
-			// Iterate over the results and apply selection criteria
+			// Iterate over the results and apply selection and field filtering
 			var selected bool
 			for _, refresh := range page.InstanceRefreshes {
 				if len(t.Select) > 0 {
