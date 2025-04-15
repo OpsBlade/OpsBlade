@@ -302,8 +302,9 @@ func anyToYAML(value any, prefix string, indent int) string {
 		return fmt.Sprintf("unable to serialize to JSON: %s", err.Error())
 	}
 
-	// Unmarshal JSON into a map
-	var doc map[string]any
+	// Unmarshal
+	//var doc map[string]any
+	var doc any
 	if err = json.Unmarshal(jsonBytes, &doc); err != nil {
 		return fmt.Sprintf("unable to deserialize to a map: %s", err.Error())
 	}

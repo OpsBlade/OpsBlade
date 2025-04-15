@@ -16,6 +16,7 @@ type Task struct {
 	EnvSuffix string             `yaml:"env_suffix" json:"env_suffix"` // Optional suffix to append to SLACK_HOOK to allow more than one
 	Subject   string             `yaml:"subject" json:"subject"`       // Subject of the message
 	Body      string             `yaml:"body" json:"body"`             // Body of the message
+	Pretty    []string           `yaml:"pretty" json:"pretty"`         // List of variables to append pretty-printed to the message
 }
 
 func init() {
@@ -40,6 +41,18 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
+	// Prepare the message body
+	msg := t.Body
+
+	// Append pretty-printed variables to the message body
+	var tmpAny any
+	for _, v := range t.Pretty {
+		tmpAny = shared.GetVar(v)
+		if tmpAny != nil {
+			msg += "\n```\n" + shared.AnyToYAMLIndent(tmpAny, "", 2) + "```"
+		}
+	}
+
 	// Create a new Slack client - note that it will try to read a webhook from the environment
 	// and a ~/.slack file, but passing a webhook will override it
 	s, err := cloudslack.New(
@@ -54,7 +67,7 @@ func (t *Task) Execute() shared.TaskResult {
 		return t.Context.Result(true, "DryRun, no message sent", data)
 	}
 
-	err = s.SendMessage(t.Subject, t.Body)
+	err = s.SendMessage(t.Subject, msg)
 	if err != nil {
 		return t.Context.Error("failed to send Slack message", err)
 	}
