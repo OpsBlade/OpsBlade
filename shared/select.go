@@ -184,6 +184,40 @@ func matchesCriteria(value any, criteria SelectCriteria) bool {
 		default:
 			return false
 		}
+	case float64:
+		wanted, ok := criteria.Value.(float64)
+		if !ok {
+			return false
+		}
+		switch criteria.Compare {
+		case Equals:
+			return typedVal == wanted
+		case Not:
+			return typedVal != wanted
+		case MoreThan:
+			return typedVal > wanted
+		case LessThan:
+			return typedVal < wanted
+		default:
+			return false
+		}
+	case int64:
+		wanted, ok := criteria.Value.(int64)
+		if !ok {
+			return false
+		}
+		switch criteria.Compare {
+		case Equals:
+			return typedVal == wanted
+		case Not:
+			return typedVal != wanted
+		case MoreThan:
+			return typedVal > wanted
+		case LessThan:
+			return typedVal < wanted
+		default:
+			return false
+		}
 	case bool:
 		wanted, ok := criteria.Value.(bool)
 		if !ok {
