@@ -7,15 +7,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
-
 	"github.com/OpsBlade/OpsBlade/services/cloudaws"
 	"github.com/OpsBlade/OpsBlade/shared"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 )
 
 type Task struct {
@@ -86,7 +85,7 @@ func (t *Task) Execute() shared.TaskResult {
 	var asgList []string
 	paginator := autoscaling.NewDescribeAutoScalingGroupsPaginator(asgClient, req,
 		func(o *autoscaling.DescribeAutoScalingGroupsPaginatorOptions) {
-			o.Limit = 25
+			o.Limit = 10
 			o.StopOnDuplicateToken = true
 		})
 
@@ -97,12 +96,29 @@ func (t *Task) Execute() shared.TaskResult {
 			return t.Context.Error("error describing autoscaling groups", err)
 		}
 
-		// Iterate over the results and apply selection criteria
 		var selected bool
 		for _, asg := range page.AutoScalingGroups {
 
-			// First create if LaunchTemplate exists and has a LaunchTemplates
+			// First check if LaunchTemplate exists and has a LaunchTemplates
+			id := ""
 			if asg.LaunchTemplate == nil || asg.LaunchTemplate.LaunchTemplateId == nil {
+				// Check for one in MixedInstancesPolicy
+				if asg.MixedInstancesPolicy == nil || asg.MixedInstancesPolicy.LaunchTemplate == nil {
+					// No launch template, skip
+					continue
+				} else {
+					// Check if the LaunchTemplateId is in the list
+					if asg.MixedInstancesPolicy.LaunchTemplate.LaunchTemplateSpecification == nil ||
+						asg.MixedInstancesPolicy.LaunchTemplate.LaunchTemplateSpecification.LaunchTemplateId == nil {
+						continue
+					}
+					id = *asg.MixedInstancesPolicy.LaunchTemplate.LaunchTemplateSpecification.LaunchTemplateId
+				}
+			} else {
+				id = *asg.LaunchTemplate.LaunchTemplateId
+			}
+
+			if id == "" {
 				continue
 			}
 
@@ -111,7 +127,7 @@ func (t *Task) Execute() shared.TaskResult {
 			}
 
 			// LaunchTemplate ID must match one item in the list
-			if !foundInList(t.LaunchTemplates, *asg.LaunchTemplate.LaunchTemplateId) {
+			if !foundInList(t.LaunchTemplates, id) {
 				continue
 			}
 

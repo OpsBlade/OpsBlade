@@ -15,11 +15,11 @@ import (
 //goland:noinspection GoUnusedConst
 const (
 	PROGNAME = "OpsBlade"
-	VERSION  = "0.1.9"
+	VERSION  = "0.1.10"
 )
 
 // This program serves both as a CLI to execute workflows from a YAML file or stdin, and as an example of
-// how to use the autoadmin workflow package.
+// how to use the workflow package.
 func main() {
 	var stdin bool
 	var dryrun bool
