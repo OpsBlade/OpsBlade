@@ -190,9 +190,15 @@ func (w *Workflow) Execute() bool {
 			skip = false
 		}
 
+		errorMessage, ok := rawTask["error_message"].(string)
+		if !ok {
+			errorMessage = ""
+		}
+
 		taskContext.Name = taskName
 		taskContext.Task = taskType
 		taskContext.Sequence = count
+		taskContext.ErrorMessage = errorMessage
 
 		if taskType == "" {
 			if w.taskEnd(taskContext.Error(fmt.Sprintf("%s: Task type is missing or not a string\n", taskContext.String()), nil)) {

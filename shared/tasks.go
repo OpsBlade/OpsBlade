@@ -19,6 +19,7 @@ type TaskContext struct {
 	Task         string `json:"task"`                   // Task type
 	Sequence     int    `json:"sequence"`               // Task sequence number
 	Instructions []byte `json:"instructions,omitempty"` // Task instructions
+	ErrorMessage string `json:"error_message,omitempty"` // Custom error message to display on failure
 }
 
 var TaskRegistry = make(map[string]func(TaskContext) Task)
@@ -48,8 +49,17 @@ func (c *TaskContext) Result(success bool, msg string, data any) TaskResult {
 
 // Error returns a task result error enriched with information from the task context
 func (c *TaskContext) Error(msg string, err error) TaskResult {
+	var fullMsg string
 	if err == nil {
-		return c.Result(false, msg, nil)
+		fullMsg = msg
+	} else {
+		fullMsg = fmt.Sprintf("%s: %s", msg, err.Error())
 	}
-	return c.Result(false, fmt.Sprintf("%s: %s", msg, err.Error()), nil)
+	
+	// Append custom error message if provided
+	if c.ErrorMessage != "" {
+		fullMsg = fmt.Sprintf("%s\n\n%s\n", fullMsg, c.ErrorMessage)
+	}
+	
+	return c.Result(false, fullMsg, nil)
 }
