@@ -40,6 +40,14 @@ tasks:
       - id
       - tags.tag1
 
+  # Example of loading variables with a custom error message (v0.1.11+)
+  # The error_message field provides context when a task fails, useful for expected failures
+  - name: "Load previous run results"
+    task: "variables_load"
+    filename: "/tmp/previous_run.json"
+    error_message: "This is expected if this is the first run. The file is created after the first successful execution."
+    skip: true  # Set to false to actually run this task
+
   # The save task is completely optional and allows filtering.
   # A common use case would be to store the output from a task for later processing. The file saved
   # with variables_saved can be loaded in another workflow with variables_load.

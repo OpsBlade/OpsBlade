@@ -49,6 +49,25 @@ And like most programs written in Go, cross-compilation using GOOS and GOARCH is
 
 The yaml file consists of some global settings and a list of tasks. The task `name` is arbitrary and are intended for human use only. The `task` field is matched against the task registry and therefore must match a task identifier of an included module from workflow/. If the task identifier is not found, a fatal error occurs.
 
+### Task Fields
+
+Each task in the YAML file can include the following common fields:
+
+* `name`: Human-readable task name (optional)
+* `task`: Task identifier that must match a registered task type (required)
+* `skip`: Boolean to skip task execution (optional, default: false)
+* `error_message`: Custom message to display when the task fails (optional, available in v0.1.11+)
+* `env`: Task-specific environment file (optional, overrides global env)
+
+The `error_message` field is particularly useful for providing context when expected failures occur. For example:
+
+```yaml
+- name: Load staging deployment results
+  task: variables_load
+  filename: "/home/eric/data/pending.json"
+  error_message: "This is normal when the previous deployment succeeds. The file is created only when there are pending tasks."
+```
+
 The following environment variables are supported:
 
 ### AWS
