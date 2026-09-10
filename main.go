@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Tenebris Technologies Inc.
+// Copyright (c) 2025-2026 Tenebris Technologies Inc.
 // This software is licensed under the MIT License (see LICENSE for details).
 
 package main
@@ -15,7 +15,7 @@ import (
 //goland:noinspection GoUnusedConst
 const (
 	PROGNAME = "OpsBlade"
-	VERSION  = "0.1.11"
+	VERSION  = "0.1.12"
 )
 
 // This program serves both as a CLI to execute workflows from a YAML file or stdin, and as an example of
