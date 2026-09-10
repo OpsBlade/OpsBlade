@@ -1,6 +1,6 @@
 module github.com/OpsBlade/OpsBlade
 
-go 1.24.2
+go 1.27.0
 
 require (
 	github.com/andygrunwald/go-jira v1.17.0
