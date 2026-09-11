@@ -6,10 +6,14 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"os"
+	"path/filepath"
+	"time"
 
+	"gopkg.in/yaml.v3"
+
+	"github.com/OpsBlade/OpsBlade/notify"
 	"github.com/OpsBlade/OpsBlade/shared"
 
 	// Import all task packages so that they register.
@@ -30,13 +34,18 @@ import (
 )
 
 type Workflow struct {
+	Name     string           `yaml:"name"` // Human-readable workflow name, used in alerts
 	Env      string           `yaml:"env"`
 	DryRun   bool             `yaml:"dryrun"`
 	Debug    bool             `yaml:"debug"`
 	JSON     bool             `yaml:"json"`
+	Notify   notify.Config    `yaml:"notify"` // Optional workflow-level alert configuration
 	Tasks    []map[string]any `yaml:"tasks"`
 	callback shared.Callback  `yaml:"-"`
 }
+
+// defaultName is used when a workflow read from stdin has no name field
+const defaultName = "OpsBlade workflow"
 
 // Option is used for the golang options pattern
 type Option func(*Workflow)
@@ -123,7 +132,69 @@ func (w *Workflow) Load(filename string) error {
 	if err = yaml.Unmarshal(data, &w); err != nil {
 		return fmt.Errorf("deserialization error: %w", err)
 	}
+
+	if err = w.Notify.Validate(); err != nil {
+		return fmt.Errorf("invalid notify block: %w", err)
+	}
+
+	// Default the workflow name so alerts always identify the workflow
+	if w.Name == "" {
+		if filename == "" {
+			w.Name = defaultName
+		} else {
+			w.Name = filepath.Base(filename)
+		}
+	}
 	return nil
+}
+
+// Alert builds the notification for a result. Every outcome produces one; the
+// notifier decides which channels, if any, receive it.
+func (w *Workflow) Alert(r Result) notify.Alert {
+	var severity notify.Severity
+	switch r.Outcome {
+	case OutcomeWarnings:
+		severity = notify.SeverityWarning
+	case OutcomeFatal:
+		severity = notify.SeverityFatal
+	case OutcomeStopped:
+		severity = notify.SeverityStopped
+	default:
+		severity = notify.SeverityCompleted
+	}
+
+	host, err := os.Hostname()
+	if err != nil {
+		host = "unknown"
+	}
+
+	name := w.Name
+	if name == "" {
+		name = defaultName
+	}
+
+	a := notify.Alert{
+		Severity: severity,
+		Workflow: name,
+		Host:     host,
+		Started:  r.Started,
+	}
+	for _, f := range r.Warnings {
+		a.Failures = append(a.Failures, failure(notify.SeverityWarning, f))
+	}
+	if r.Fatal != nil {
+		a.Failures = append(a.Failures, failure(notify.SeverityFatal, *r.Fatal))
+		a.TasksNotRun = r.TasksTotal - r.TasksRun
+	}
+	if r.StoppedAt != nil {
+		a.Failures = append(a.Failures, failure(notify.SeverityStopped, *r.StoppedAt))
+	}
+	return a
+}
+
+// failure converts a task failure into a notification entry of the given severity
+func failure(severity notify.Severity, f TaskFailure) notify.Failure {
+	return notify.Failure{Severity: severity, Sequence: f.Sequence, Name: f.Name, Task: f.Task, Msg: f.Msg}
 }
 
 // AddTask adds a task to the configuration
@@ -157,70 +228,56 @@ func (w *Workflow) AddTaskYAML(task []byte) error {
 	return nil
 }
 
-// Execute the loaded workflow
+// Execute the loaded workflow and return a summary of the outcome.
 //
-//goland:noinspection GoUnusedExportedFunction
-func (w *Workflow) Execute() bool {
+// Each task's on_fail field (warn, fatal, stop; default fatal) decides what a failure
+// means. A task may also request a clean stop by returning a result with Stop set.
+func (w *Workflow) Execute() Result {
 	var err error
-	var count int
 
-	// Create a task context, defaulting to global file settings
-	var taskContext = shared.TaskContext{
-		Env:          w.Env,
-		DryRun:       w.DryRun,
-		Debug:        w.Debug,
-		Instructions: make([]byte, 0),
+	result := Result{
+		Outcome:    OutcomeCompleted,
+		TasksTotal: len(w.Tasks),
+		Started:    time.Now(),
+	}
+
+	// Validate on_fail values before running anything so a typo cannot produce a partial run
+	for i, rawTask := range w.Tasks {
+		taskContext := w.newTaskContext(i+1, rawTask)
+		if _, err = parseOnFail(rawTask); err != nil {
+			taskContext.OnFail = shared.OnFailFatal
+			w.finish(&result, taskContext, taskContext.Error("Invalid on_fail value", err))
+			return result
+		}
 	}
 
 	// Iterate over the tasks
-	for _, rawTask := range w.Tasks {
-		count++
-		taskName, ok := rawTask["name"].(string)
-		if !ok {
-			taskName = ""
-		}
+	for i, rawTask := range w.Tasks {
+		taskContext := w.newTaskContext(i+1, rawTask)
+		result.TasksRun++
 
-		taskType, ok := rawTask["task"].(string)
-		if !ok {
-			taskType = ""
-		}
-
-		skip, ok := rawTask["skip"].(bool)
-		if !ok {
-			skip = false
-		}
-
-		errorMessage, ok := rawTask["error_message"].(string)
-		if !ok {
-			errorMessage = ""
-		}
-
-		taskContext.Name = taskName
-		taskContext.Task = taskType
-		taskContext.Sequence = count
-		taskContext.ErrorMessage = errorMessage
-
-		if taskType == "" {
-			if w.taskEnd(taskContext.Error(fmt.Sprintf("%s: Task type is missing or not a string\n", taskContext.String()), nil)) {
-				return false
+		if taskContext.Task == "" {
+			if !w.finish(&result, taskContext, taskContext.Error("Task type is missing or not a string", nil)) {
+				return result
 			}
 			continue
 		}
 
-		if skip {
+		if skip, _ := rawTask["skip"].(bool); skip {
 			r := taskContext.Result(true, "Task skipped", nil)
 			r.MessageType = "task_skipped"
-			if !w.taskEnd(r) {
-				break
+			r.Outcome = "skipped"
+			if !w.finish(&result, taskContext, r) {
+				return result
 			}
 			continue
 		}
 
 		// Obtain the task constructor from the registry
-		constructor, ok := shared.TaskRegistry[taskType]
+		constructor, ok := shared.TaskRegistry[taskContext.Task]
 		if !ok {
-			if !w.taskEnd(taskContext.Error(fmt.Sprintf("Invalid task: %s", taskType), nil)) {
-				return false
+			if !w.finish(&result, taskContext, taskContext.Error(fmt.Sprintf("Invalid task: %s", taskContext.Task), nil)) {
+				return result
 			}
 			continue
 		}
@@ -232,8 +289,8 @@ func (w *Workflow) Execute() bool {
 		// with the raw map[string]any.
 		taskContext.Instructions, err = json.Marshal(rawTask)
 		if err != nil {
-			if !w.taskEnd(taskContext.Error("Failed to serialize task", err)) {
-				return false
+			if !w.finish(&result, taskContext, taskContext.Error("Failed to serialize task", err)) {
+				return result
 			}
 			continue
 		}
@@ -253,24 +310,128 @@ func (w *Workflow) Execute() bool {
 		task := constructor(taskContext)
 
 		// Execute the task
-		result := task.Execute()
+		taskResult := task.Execute()
 
 		// Force the message type
-		result.MessageType = "task_stop"
+		taskResult.MessageType = "task_stop"
 
 		// Copy returned data to variables
-		if !result.NoVars {
-			for key, value := range result.Data {
+		if !taskResult.NoVars {
+			for key, value := range taskResult.Data {
 				shared.SetVar(key, value)
 			}
 		}
 
-		// Process the result and break if necessary
-		if !w.taskEnd(result) {
-			return false
+		// Process the result and stop if necessary
+		if !w.finish(&result, taskContext, taskResult) {
+			return result
 		}
 	}
-	return true
+	return result
+}
+
+// newTaskContext builds the context for a task from its raw map and the workflow defaults.
+// on_fail is copied as-is; parseOnFail validates it.
+func (w *Workflow) newTaskContext(sequence int, rawTask map[string]any) shared.TaskContext {
+	name, _ := rawTask["name"].(string)
+	taskType, _ := rawTask["task"].(string)
+	errorMessage, _ := rawTask["error_message"].(string)
+	onFail, _ := parseOnFail(rawTask)
+	return shared.TaskContext{
+		Env:          w.Env,
+		DryRun:       w.DryRun,
+		Debug:        w.Debug,
+		Name:         name,
+		Task:         taskType,
+		Sequence:     sequence,
+		Instructions: make([]byte, 0),
+		ErrorMessage: errorMessage,
+		OnFail:       onFail,
+	}
+}
+
+// parseOnFail returns the task's on_fail value, defaulting to fatal, or an error if it is not valid
+func parseOnFail(rawTask map[string]any) (string, error) {
+	raw, present := rawTask["on_fail"]
+	if !present || raw == nil {
+		return shared.OnFailFatal, nil
+	}
+	value, ok := raw.(string)
+	if !ok {
+		return shared.OnFailFatal, fmt.Errorf("on_fail must be a string, got %T", raw)
+	}
+	switch value {
+	case shared.OnFailWarn, shared.OnFailFatal, shared.OnFailStop:
+		return value, nil
+	case "":
+		return shared.OnFailFatal, nil
+	default:
+		return shared.OnFailFatal, fmt.Errorf("on_fail must be %q, %q, or %q, got %q",
+			shared.OnFailWarn, shared.OnFailFatal, shared.OnFailStop, value)
+	}
+}
+
+// classify maps a task result and its on_fail setting to an outcome label.
+// A result may carry its own on_fail, which takes precedence; tasks use this to
+// classify an expected condition differently from an error.
+func classify(r shared.TaskResult, onFail string) string {
+	if r.OnFail != "" {
+		onFail = r.OnFail
+	}
+	switch {
+	case r.Outcome == "skipped":
+		return "skipped"
+	case r.Success && r.Stop:
+		return "stop"
+	case r.Success:
+		return "success"
+	case onFail == shared.OnFailWarn:
+		return "warning"
+	case onFail == shared.OnFailStop:
+		return "stop"
+	default:
+		return "fatal"
+	}
+}
+
+// finish applies on_fail to a task result, reports it, updates the workflow result,
+// and returns true if the workflow should continue
+func (w *Workflow) finish(result *Result, c shared.TaskContext, r shared.TaskResult) bool {
+	outcome := classify(r, c.OnFail)
+	r.Outcome = outcome
+
+	// The recorded failure carries the task's own message; the console copy also says what happens next
+	failure := &TaskFailure{Sequence: c.Sequence, Name: c.Name, Task: c.Task, Msg: r.Msg}
+	if outcome == "warning" {
+		if r.OnFail != "" {
+			r.Msg += " (continuing: warn)"
+		} else {
+			r.Msg += " (continuing: on_fail is warn)"
+		}
+	}
+
+	// Report the result. A callback may veto continuation.
+	if !w.taskEnd(r) && outcome != "stop" && outcome != "fatal" {
+		outcome = "fatal"
+		failure.Msg = "halted by callback"
+	}
+
+	switch outcome {
+	case "warning":
+		result.Warnings = append(result.Warnings, *failure)
+		result.Outcome = OutcomeWarnings
+		return true
+	case "stop":
+		result.Outcome = OutcomeStopped
+		result.StoppedAt = failure
+		return false
+	case "fatal":
+		result.Outcome = OutcomeFatal
+		result.Fatal = failure
+		return false
+	default:
+		return true
+	}
 }
 
 // Dump pretty-prints the loaded workflow
@@ -307,7 +468,9 @@ func (w *Workflow) taskStart(task shared.TaskInfo) bool {
 	return true
 }
 
-// taskEnd either passes the results to the callback function or prints them to stdout
+// taskEnd either passes the results to the callback function or prints them to stdout.
+// It returns false only when a callback vetoes continuation; the engine decides
+// what a failure means via on_fail.
 func (w *Workflow) taskEnd(result shared.TaskResult) bool {
 
 	// If a callback function is set, pass it the results
@@ -323,6 +486,5 @@ func (w *Workflow) taskEnd(result shared.TaskResult) bool {
 	}
 	fmt.Println()
 
-	// Only continue if there was success
-	return result.Success
+	return true
 }

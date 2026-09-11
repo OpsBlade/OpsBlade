@@ -63,8 +63,7 @@ func (t *Task) Execute() shared.TaskResult {
 
 	client := amazonInstance.EC2Client()
 	req := &ec2.DescribeInstancesInput{
-		Filters: cloudaws.FiltersToEC2(t.Filters),
-		DryRun:  &t.Context.DryRun}
+		Filters: cloudaws.FiltersToEC2(t.Filters)}
 
 	// Set up the paginator
 	var instanceData []any

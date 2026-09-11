@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.331.0
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/pflag v1.0.10
+	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -18,7 +19,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.0 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.3 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.6 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.19 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.3 // indirect
@@ -32,4 +32,5 @@ require (
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )

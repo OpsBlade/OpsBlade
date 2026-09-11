@@ -8,6 +8,17 @@ OneBlade executes tasks in sequence from a YAML file. A sample is included as ex
 
 Each task is coded as a separate Go package in the workflow directory. Please refer to workflow/example/example.go for an example of how tasks work and how to add new ones.
 
+## **ATTENTION: BEHAVIOUR CHANGE: failure handling and exit codes**
+
+Task failures are now classified by a per-task `on_fail` field (`warn`, `fatal`, or `stop`; default `fatal`), and a workflow can send a WARNING or FATAL ERROR alert to Slack and/or email. See USERGUIDE.md sections 6 and 7.
+
+Two things changed that existing cron jobs and wrapper scripts may depend on:
+
+* `exit_if`, and any task with `on_fail: stop`, now end the workflow with **exit code 0**. Previously a deliberate stop exited 1 and printed "Terminating due to failed task".
+* The startup banner (name, version, copyright) is now written to **stderr** so that stdout carries only task output.
+* Alert bodies have a new layout: each entry is a severity label followed by the task number and type, its name, the error, and the action taken. The `notify.email` block gains a `transcript` option, default `always`, which emails the run's full output after every run. If you already email stdout from cron, set `transcript: error` or `never`, or drop the cron redirect.
+* `jira_issue_check` no longer treats an issue that is not in the required state as an error. By default it now stops the workflow cleanly with **exit code 0** and no alert. Jira API and credential errors are still failures governed by `on_fail`. See USERGUIDE.md section 10.4.
+
 ## **ATTENTION: BREAKING CONFIG CHANGE in 0.1.8**
 
 OpsBlade 0.1.8 has a significant change in the configuration subsystem. While the previous system was flexible, in retrospect allowing users to load configuration information from the yaml file or variables was a mistake. It made it too easy for users who version control their yaml files to accidentally commit credentials to a repository and it was not possible to ensure that credentials did not appear in debug output.
@@ -16,7 +27,7 @@ Credentials have now been entirely removed from the configuration file and repla
 
 Some service modules (AWS for example) will fall back to their default configuration files if no environment file is specified. Others, such as Slack and Jira will return an error.
 
-Please see below for a list of supported environment variables.
+See USERGUIDE.md section 8 for the supported environment variables.
 
 Users may wish to set `dryrun: true` at the file level to verify that credentials are loaded as expected.
 
@@ -35,8 +46,10 @@ OpsBlade is developed in Go. To build it, you will need to have Go installed on 
 ```
 git clone https://github.com/OpsBlade/OpsBlade.git
 cd OpsBlade
-go build -o opsblade
+make build
 ```
+
+`make build` stamps the binary with the git commit and build time; `opsblade --version` shows them. A plain `go build -o opsblade` also works and produces an unstamped binary. `make build-all` cross-compiles for Linux and macOS on amd64 and arm64 into `bin/`. `make check` runs the full regression suite (build, vet, race-enabled tests) and exits non-zero on any failure; it is the gate for CI/CD pipelines. `make test` and `./test.sh` are equivalent.
 
 Users who intend to compile and run on different computers may wish to set CGO_ENABLED=0 to avoid reliance on the system's C libraries.
 
@@ -47,52 +60,21 @@ And like most programs written in Go, cross-compilation using GOOS and GOARCH is
 
 ## Use
 
-The yaml file consists of some global settings and a list of tasks. The task `name` is arbitrary and are intended for human use only. The `task` field is matched against the task registry and therefore must match a task identifier of an included module from workflow/. If the task identifier is not found, a fatal error occurs.
-
-### Task Fields
-
-Each task in the YAML file can include the following common fields:
-
-* `name`: Human-readable task name (optional)
-* `task`: Task identifier that must match a registered task type (required)
-* `skip`: Boolean to skip task execution (optional, default: false)
-* `error_message`: Custom message to display when the task fails (optional, available in v0.1.11+)
-* `env`: Task-specific environment file (optional, overrides global env)
-
-The `error_message` field is particularly useful for providing context when expected failures occur. For example:
-
-```yaml
-- name: Load staging deployment results
-  task: variables_load
-  filename: "/home/eric/data/pending.json"
-  error_message: "This is normal when the previous deployment succeeds. The file is created only when there are pending tasks."
+```
+opsblade [filename.yaml] [--stdin] [--json] [--dryrun] [--debug] [--version]
 ```
 
-The following environment variables are supported:
+A workflow is a YAML file with a few global settings and a list of tasks that run in order. `example.yaml.txt` is a commented sample. Each task's output becomes variables that later tasks can reference with `{{name}}`.
 
-### AWS
+**The complete reference is [USERGUIDE.md](USERGUIDE.md).** It covers the file format, common task fields, variables, filters and selection, failure handling and exit codes, notifications and transcripts, credentials, every task's fields and outputs, and library use. In brief:
 
-* AWS_ACCESS_KEY_ID
-* AWS_SECRET_ACCESS_KEY
-* AWS_REGION
-
-Note: If AWS environment variables are not set, the AWS SDK will attempt to load credentials and configuration from ~/.aws. If specifing a profile is required, it must be included at the task level. The AWS region can also optionally be specified at the task level.
-
-### Slack
-
-* SLACK_WEBHOOK
-
-Note: To simplify sending messages to more than one slack channel, the slack_send task has an optional `env_suffix` field. If set, it will be appended to the SLACK_WEBHOOK environment variable. For example, `env_suffix: _DEV` will cause the Slack service to retrieve SLACK_WEBHOOK_DEV from the environment.
-
-### Jira
-
-* JIRA_USER
-* JIRA_TOKEN
-* JIRA_URL
+* Every task has `on_fail`: `fatal` (default, abort with exit 1 and a FATAL ERROR alert), `warn` (continue, WARNING alert at the end), or `stop` (a normal condition, exit 0, no alert). `exit_if` stops cleanly by itself. `jira_issue_check` uses `on_mismatch` for an issue that is not in the required state and `on_fail` for Jira errors.
+* A top-level `notify` block sends WARNING and FATAL ERROR alerts to Slack and/or email. With `transcript: always` (the default) email also carries the run's full output, so cron no longer needs to mail stdout. Email addresses may carry a display name, as in `"OpsBlade <opsblade@example.com>"`.
+* Credentials never go in the YAML file. They come from `.env` files named by `env:` at the file or task level: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` (or the SDK default chain); `JIRA_USER`, `JIRA_TOKEN`, `JIRA_URL`; `SLACK_WEBHOOK` with an optional suffix; `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` for email notifications.
 
 ## Copyright and license
 
-Copyright (c) 2025 by Tenebris Technologies Inc. This software is licensed under the MIT License. Please see LICENSE for details.
+Copyright (c) 2025-2026 by Tenebris Technologies Inc. This software is licensed under the MIT License. Please see LICENSE for details.
 
 ## No Warranty (nada, zilch, nil, null)
 

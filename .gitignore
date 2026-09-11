@@ -16,3 +16,7 @@ private/
 env
 opsblade
 *.yaml
+
+# Working documents, not for commit
+PLAN*.md
+UPGRADE*.md

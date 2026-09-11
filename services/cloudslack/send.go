@@ -9,7 +9,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 )
+
+// requestTimeout bounds a webhook call so a hung Slack endpoint cannot stall the workflow
+const requestTimeout = 30 * time.Second
 
 type SlackMessage struct {
 	Blocks []map[string]any `json:"blocks"`
@@ -51,7 +56,7 @@ func (s *CloudSlack) SendMessage(subject, message string) error {
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	// Send it
-	client := &http.Client{}
+	client := &http.Client{Timeout: requestTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -61,6 +66,11 @@ func (s *CloudSlack) SendMessage(subject, message string) error {
 	}(resp.Body)
 
 	if resp.StatusCode != 200 {
+		// Slack returns a short reason in the body, such as channel_not_found or channel_is_archived
+		reason, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		if r := strings.TrimSpace(string(reason)); r != "" {
+			return fmt.Errorf("non-200 response from Slack: %s (%s)", resp.Status, r)
+		}
 		return fmt.Errorf("non-200 response from Slack: %s", resp.Status)
 	}
 	return nil

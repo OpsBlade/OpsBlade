@@ -18,6 +18,7 @@ type Task struct {
 	IssueId            string             `yaml:"issue_id" json:"issue_id"`                       // Jira Issue ID
 	RequiredStatus     string             `yaml:"required_status" json:"required_status"`         // State required to pass
 	RequiredResolution string             `yaml:"required_resolution" json:"required_resolution"` // Resolution required to pass
+	OnMismatch         string             `yaml:"on_mismatch" json:"on_mismatch"`                 // What a status/resolution mismatch means: stop (default), warn, or fatal
 }
 
 func init() {
@@ -38,6 +39,18 @@ func (t *Task) Execute() shared.TaskResult {
 
 	if t.Context.Debug {
 		shared.DumpTask(t)
+	}
+
+	// A mismatch is an expected condition, not an error, so it is classified by
+	// on_mismatch rather than on_fail. API and configuration errors still use on_fail.
+	switch t.OnMismatch {
+	case "":
+		t.OnMismatch = shared.OnFailStop
+	case shared.OnFailStop, shared.OnFailWarn, shared.OnFailFatal:
+	default:
+		return t.Context.Error("invalid on_mismatch value",
+			fmt.Errorf("on_mismatch must be %q, %q, or %q, got %q",
+				shared.OnFailStop, shared.OnFailWarn, shared.OnFailFatal, t.OnMismatch))
 	}
 
 	data["check_jira_issue_id"] = t.IssueId
@@ -70,7 +83,7 @@ func (t *Task) Execute() shared.TaskResult {
 			issueResolution = issue.Fields.Resolution.Name
 		}
 	} else {
-		return t.Context.Error("failed to get JIRA issue fields", err)
+		return t.Context.Error("failed to get JIRA issue fields", fmt.Errorf("issue has no fields"))
 	}
 
 	data["check_jira_issue_status"] = issueStatus
@@ -79,21 +92,31 @@ func (t *Task) Execute() shared.TaskResult {
 
 	// Check if the issue is in the desired state
 	if t.RequiredStatus != "" {
-		if strings.ToLower(issueStatus) != strings.ToLower(t.RequiredStatus) {
-			return t.Context.Error(
+		if !strings.EqualFold(issueStatus, t.RequiredStatus) {
+			return t.mismatch(
 				fmt.Sprintf("JIRA issue %s is in status '%s' but status '%s' is required", t.IssueId, issueStatus, t.RequiredStatus),
-				nil)
+				data)
 		}
 	}
 
 	if t.RequiredResolution != "" {
-		if strings.ToLower(issueResolution) != strings.ToLower(t.RequiredResolution) {
-			return t.Context.Error(
+		if !strings.EqualFold(issueResolution, t.RequiredResolution) {
+			return t.mismatch(
 				fmt.Sprintf("JIRA issue %s is in resolution '%s' but resolution '%s' is required", t.IssueId, issueResolution, t.RequiredResolution),
-				nil)
+				data)
 		}
 	}
 
 	data["check_jira_issue_passed"] = true
 	return t.Context.Result(true, fmt.Sprintf("JIRA issue %s is in the desired state", t.IssueId), data)
+}
+
+// mismatch returns a failed result for an issue that is not in the required state.
+// The result carries the on_mismatch setting so the engine classifies it
+// independently of on_fail, and the data so the check_jira_issue_* variables are set.
+func (t *Task) mismatch(msg string, data map[string]any) shared.TaskResult {
+	r := t.Context.Error(msg, nil)
+	r.Data = data
+	r.OnFail = t.OnMismatch
+	return r
 }

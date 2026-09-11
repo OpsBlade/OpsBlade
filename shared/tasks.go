@@ -12,15 +12,23 @@ type Task interface {
 }
 
 type TaskContext struct {
-	Env          string `json:"env,omitempty"`          // Task environment (overrides global)
-	DryRun       bool   `json:"dryrun,omitempty"`       // Dry run mode
-	Debug        bool   `json:"debug,omitempty"`        // Debug mode
-	Name         string `json:"name,omitempty"`         // Task name
-	Task         string `json:"task"`                   // Task type
-	Sequence     int    `json:"sequence"`               // Task sequence number
-	Instructions []byte `json:"instructions,omitempty"` // Task instructions
+	Env          string `json:"env,omitempty"`           // Task environment (overrides global)
+	DryRun       bool   `json:"dryrun,omitempty"`        // Dry run mode
+	Debug        bool   `json:"debug,omitempty"`         // Debug mode
+	Name         string `json:"name,omitempty"`          // Task name
+	Task         string `json:"task"`                    // Task type
+	Sequence     int    `json:"sequence"`                // Task sequence number
+	Instructions []byte `json:"instructions,omitempty"`  // Task instructions
 	ErrorMessage string `json:"error_message,omitempty"` // Custom error message to display on failure
+	OnFail       string `json:"on_fail,omitempty"`       // What a failure means: warn, fatal (default), or stop
 }
+
+// Valid values for the on_fail task field
+const (
+	OnFailWarn  = "warn"  // record a warning and continue
+	OnFailFatal = "fatal" // abort the workflow (default)
+	OnFailStop  = "stop"  // stop the workflow cleanly; not an error
+)
 
 var TaskRegistry = make(map[string]func(TaskContext) Task)
 
@@ -47,6 +55,14 @@ func (c *TaskContext) Result(success bool, msg string, data any) TaskResult {
 		Data:        dataMap}
 }
 
+// Stop returns a successful task result that asks the engine to stop the workflow cleanly.
+// This is a normal condition, not a failure.
+func (c *TaskContext) Stop(msg string, data any) TaskResult {
+	r := c.Result(true, msg, data)
+	r.Stop = true
+	return r
+}
+
 // Error returns a task result error enriched with information from the task context
 func (c *TaskContext) Error(msg string, err error) TaskResult {
 	var fullMsg string
@@ -55,11 +71,11 @@ func (c *TaskContext) Error(msg string, err error) TaskResult {
 	} else {
 		fullMsg = fmt.Sprintf("%s: %s", msg, err.Error())
 	}
-	
+
 	// Append custom error message if provided
 	if c.ErrorMessage != "" {
 		fullMsg = fmt.Sprintf("%s\n\n%s\n", fullMsg, c.ErrorMessage)
 	}
-	
+
 	return c.Result(false, fullMsg, nil)
 }

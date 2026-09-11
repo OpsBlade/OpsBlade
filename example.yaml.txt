@@ -1,7 +1,26 @@
+# The workflow name appears in alert subject lines. It defaults to the file name.
+name: Example workflow
 dryrun: false
 debug: false
 json: false
 env: /home/user/.env
+
+# Optional: send a loud WARNING (completed with on_fail: warn failures) or
+# FATAL ERROR (aborted) alert. Slack, email, or both. Credentials come from
+# the env file: SLACK_WEBHOOK[_suffix], SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS.
+notify:
+  slack:
+    env_suffix: _ALERTS   # optional; omit to use SLACK_WEBHOOK
+    mention: channel      # optional; channel (default), here, or none
+  email:
+    to: [ops@example.com]
+    from: "OpsBlade <opsblade@example.com>"   # a bare address also works
+    subject_prefix: "[OpsBlade]"   # optional; applied to every email
+    # transcript controls emailing the run's captured stdout and stderr:
+    #   always: every run is emailed (COMPLETED, STOPPED, WARNING, FATAL ERROR) with the transcript (default)
+    #   error:  only WARNING and FATAL ERROR alerts are emailed, with the transcript
+    #   never:  only WARNING and FATAL ERROR alerts are emailed, without the transcript
+    transcript: always
 
 tasks:
     # Variables are a name value pair. The name must be a string. Enclosing string values in quotes
@@ -40,12 +59,41 @@ tasks:
       - id
       - tags.tag1
 
+  # Every task accepts on_fail: warn | fatal | stop (default fatal).
+  #   fatal: abort the workflow, exit 1, FATAL ERROR alert
+  #   warn:  record a warning and continue, exit 0, WARNING alert at the end
+  #   stop:  a normal condition; stop the workflow cleanly, exit 0, no alert
+  # A notification that fails should not stop real work:
+  - name: "Announce"
+    task: slack_send
+    subject: "Example workflow starting"
+    body: "Hello"
+    on_fail: warn
+    skip: true  # Set to false to actually run this task
+
   # Example of loading variables with a custom error message (v0.1.11+)
-  # The error_message field provides context when a task fails, useful for expected failures
+  # The error_message field provides context when a task fails, useful for expected failures.
+  # on_fail: stop makes the missing file a clean exit rather than an error.
   - name: "Load previous run results"
     task: "variables_load"
     filename: "/tmp/previous_run.json"
     error_message: "This is expected if this is the first run. The file is created after the first successful execution."
+    on_fail: stop
+    skip: true  # Set to false to actually run this task
+
+  # jira_issue_check separates "not in the required state" from "could not check".
+  #   on_mismatch: stop | warn | fatal (default stop) applies when the issue was fetched
+  #                but its status or resolution does not match.
+  #   on_fail:     applies to Jira errors (bad credentials, 401, 404, network) as usual.
+  # With the defaults, a ticket that is not approved yet exits 0 quietly, while an
+  # expired token exits 1 with a FATAL ERROR alert.
+  - name: "Check that the change ticket is approved"
+    task: jira_issue_check
+    issue_id: "OPS-123"
+    required_status: "Done / Closed"
+    required_resolution: "Done"
+    error_message: "The change ticket is not approved yet."
+    on_mismatch: stop
     skip: true  # Set to false to actually run this task
 
   # The save task is completely optional and allows filtering.

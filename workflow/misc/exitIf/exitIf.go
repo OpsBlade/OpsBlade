@@ -49,14 +49,11 @@ func (t *Task) Execute() shared.TaskResult {
 	data["exit_if_result"] = selected
 
 	if selected {
-		return t.Context.Result(
-			false,
-			"Exit condition met, returning false to terminate workflow",
-			data)
+		return t.Context.Stop("Exit condition met, stopping workflow", data)
 	}
 
 	return t.Context.Result(
 		true,
-		"Exit condition not met, returning true to continue workflow",
+		"Exit condition not met, continuing workflow",
 		data)
 }

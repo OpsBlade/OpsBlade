@@ -10,14 +10,17 @@ import (
 
 // TaskResult is used to report on the result of a task
 type TaskResult struct {
-	MessageType string         `json:"message_type"`   // Message type
-	Success     bool           `json:"success"`        // Task success status
-	Msg         string         `json:"msg,omitempty"`  // Task message
-	Sequence    int            `json:"sequence"`       // Task sequence number
-	Name        string         `json:"name,omitempty"` // Task name
-	Task        string         `json:"task,omitempty"` // Task type
-	Data        map[string]any `json:"data,omitempty"` // Task data
-	NoVars      bool           `json:"-" yaml:"-"`     // Do not set variables from this data
+	MessageType string         `json:"message_type"`      // Message type
+	Success     bool           `json:"success"`           // Task success status
+	Stop        bool           `json:"stop,omitempty"`    // Task requests a clean stop of the workflow (not a failure)
+	OnFail      string         `json:"-"`                 // If set, overrides the task's on_fail for this result (warn, fatal, stop)
+	Outcome     string         `json:"outcome,omitempty"` // Set by the engine after applying on_fail: success, warning, fatal, stop, skipped
+	Msg         string         `json:"msg,omitempty"`     // Task message
+	Sequence    int            `json:"sequence"`          // Task sequence number
+	Name        string         `json:"name,omitempty"`    // Task name
+	Task        string         `json:"task,omitempty"`    // Task type
+	Data        map[string]any `json:"data,omitempty"`    // Task data
+	NoVars      bool           `json:"-" yaml:"-"`        // Do not set variables from this data
 }
 
 // serialize is a non-exported function that attempts to serialize the task result to a JSON string
@@ -66,6 +69,9 @@ func (tr *TaskResult) String() string {
 		r = fmt.Sprintf("* Completed task %d: \"%s\" [%s]\n", tr.Sequence, tr.Name, tr.Task)
 	}
 	r += fmt.Sprintf("Success: %t\n", tr.Success)
+	if tr.Outcome != "" {
+		r += fmt.Sprintf("Outcome: %s\n", tr.Outcome)
+	}
 	r += fmt.Sprintf("Message: %s\n", tr.Msg)
 	if tr.Data != nil {
 		if len(tr.Data) > 0 {

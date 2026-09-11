@@ -55,7 +55,6 @@ func (t *Task) Execute() shared.TaskResult {
 	client := amazonInstance.EC2Client()
 	req := &ec2.DescribeImagesInput{
 		Filters: cloudaws.FiltersToEC2(t.Filters),
-		DryRun:  &t.Context.DryRun,
 	}
 	if t.Owner != "" {
 		req.Owners = []string{t.Owner}

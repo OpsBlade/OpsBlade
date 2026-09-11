@@ -64,7 +64,7 @@ func TestDumpTask(t *testing.T) {
 	}
 
 	// Check that the dump field exists
-	dump, ok := result["dump"]
+	dump, ok := result["task_dump"]
 	if !ok {
 		t.Errorf("Output JSON does not contain 'dump' field: %s", jsonStr)
 	}
