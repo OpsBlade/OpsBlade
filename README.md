@@ -25,7 +25,7 @@ OpsBlade 0.1.8 has a significant change in the configuration subsystem. While th
 
 Credentials have now been entirely removed from the configuration file and replaced with "env:" at both the file and task level. If "env" is specified at the task level, the file it points to will be loaded into the environment by the appropriate service module. If "env" is not specified at the task level, the file level "env" (if specified) will be loaded.
 
-Some service modules (AWS for example) will fall back to their default configuration files if no environment file is specified. Others, such as Slack and Jira will return an error.
+Some service modules (AWS for example) will fall back to their default configuration files if no environment file is specified. Others, such as Slack and Jira will return an error. Because the AWS fallback is silent, an incomplete environment file can leave a workflow running against the wrong account; the `aws_account_check` task guards against this.
 
 See USERGUIDE.md section 8 for the supported environment variables.
 
@@ -71,6 +71,7 @@ A workflow is a YAML file with a few global settings and a list of tasks that ru
 * Every task has `on_fail`: `fatal` (default, abort with exit 1 and a FATAL ERROR alert), `warn` (continue, WARNING alert at the end), or `stop` (a normal condition, exit 0, no alert). `exit_if` stops cleanly by itself. `jira_issue_check` uses `on_mismatch` for an issue that is not in the required state and `on_fail` for Jira errors.
 * A top-level `notify` block sends WARNING and FATAL ERROR alerts to Slack and/or email. With `transcript: always` (the default) email also carries the run's full output, so cron no longer needs to mail stdout. Email addresses may carry a display name, as in `"OpsBlade <opsblade@example.com>"`.
 * Credentials never go in the YAML file. They come from `.env` files named by `env:` at the file or task level: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` (or the SDK default chain); `JIRA_USER`, `JIRA_TOKEN`, `JIRA_URL`; `SLACK_WEBHOOK` with an optional suffix; `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` for email notifications.
+* `aws_account_check` confirms that the AWS credentials resolve to the expected account before anything is changed. Set `AWS_ACCOUNT_ID` in the environment file and place it as the first task. See USERGUIDE.md section 10.5.
 
 ## Copyright and license
 
