@@ -30,7 +30,7 @@ const (
 	// version is the release number, bare semver. Bump it here; nothing else
 	// defines a version. Build tooling reads this line, so keep it a single
 	// assignment on one line.
-	version = "0.2.00"
+	version = "0.2.1"
 )
 
 // Build metadata, injected via ldflags:
