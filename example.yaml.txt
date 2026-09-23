@@ -98,6 +98,7 @@ tasks:
 
   # Confirm the AWS credentials belong to the expected account before any AWS task
   # changes anything. Uses the same env/region/profile resolution as the other AWS tasks.
+  #   account_id:  may be omitted when AWS_ACCOUNT_ID is set in the environment file.
   #   on_mismatch: fatal | warn | stop (default fatal) applies when the account differs.
   #   on_fail:     applies to AWS errors (bad credentials, network) as usual.
   - name: "Confirm we are in the production AWS account"

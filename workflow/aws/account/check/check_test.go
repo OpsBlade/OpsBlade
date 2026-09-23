@@ -119,8 +119,30 @@ func TestExecute_APIErrorIsNotAMismatch(t *testing.T) {
 	}
 }
 
+func TestExecute_AccountIdFromEnvironment(t *testing.T) {
+	fakeSTS(t, http.StatusOK)
+	t.Setenv("AWS_ACCOUNT_ID", fakeAccount)
+	r := execute(t, map[string]any{})
+	assert.True(t, r.Success)
+	assert.Equal(t, true, r.Data["check_aws_account_passed"])
+
+	t.Setenv("AWS_ACCOUNT_ID", "222222222222")
+	r = execute(t, map[string]any{})
+	assert.False(t, r.Success)
+	assert.Equal(t, shared.OnFailFatal, r.OnFail)
+	assert.Contains(t, r.Msg, "but account 222222222222 is required")
+}
+
+func TestExecute_FieldOverridesEnvironment(t *testing.T) {
+	fakeSTS(t, http.StatusOK)
+	t.Setenv("AWS_ACCOUNT_ID", "222222222222")
+	r := execute(t, map[string]any{"account_id": fakeAccount})
+	assert.True(t, r.Success)
+}
+
 func TestExecute_MissingAccountId(t *testing.T) {
 	fakeSTS(t, http.StatusOK)
+	t.Setenv("AWS_ACCOUNT_ID", "")
 	r := execute(t, map[string]any{})
 	assert.False(t, r.Success)
 	assert.Empty(t, r.OnFail)

@@ -515,7 +515,7 @@ the file, so a variable exported before running OpsBlade takes precedence.
 
 | Service | Variables | Notes |
 |---|---|---|
-| AWS | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | See 8.1. |
+| AWS | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | See 8.1. `AWS_ACCOUNT_ID` is optional and is the default `account_id` for `aws_account_check` (section 10.5). |
 | Jira | `JIRA_USER`, `JIRA_TOKEN`, `JIRA_URL` | All three are required. `JIRA_USER` is the account email, `JIRA_TOKEN` an API token, `JIRA_URL` the site base URL such as `https://example.atlassian.net/`. |
 | Slack | `SLACK_WEBHOOK` | An incoming webhook URL. An `env_suffix` on `slack_send` or `notify.slack` appends to the name, so `_DEV` reads `SLACK_WEBHOOK_DEV`. |
 | Email | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Notifications only. `SMTP_HOST` is required. Port defaults to 587; 465 selects implicit TLS, other ports use STARTTLS when the server offers it. `SMTP_USER` enables PLAIN authentication with `SMTP_PASS`. The `from` and `to` addresses themselves are set in the `notify.email` block (section 7), not in the environment. |
@@ -804,7 +804,7 @@ the first resource lookup, or not at all.
 
 | Field | Meaning |
 |---|---|
-| `account_id` | Required. The 12-digit account the credentials must belong to. |
+| `account_id` | The 12-digit account the credentials must belong to. Optional when `AWS_ACCOUNT_ID` is set in the environment file, which keeps the account next to the credentials it describes. The field wins when both are set. |
 | `on_mismatch` | `fatal` (default), `warn`, or `stop`. Applies when the identity was fetched but the account differs. API and credential errors use `on_fail` as usual. |
 
 Produces: `aws_account_id`, `aws_arn`, `aws_user_id`,
@@ -817,6 +817,9 @@ are still set so a later task can inspect the outcome.
   env: prod.env
   account_id: "123456789012"
 ```
+
+With `AWS_ACCOUNT_ID=123456789012` in `prod.env`, the `account_id` line can
+be omitted.
 
 #### aws_ec2_instance_list
 

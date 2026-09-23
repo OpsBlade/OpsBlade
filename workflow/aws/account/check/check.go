@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -20,7 +21,7 @@ type Task struct {
 	Env        string             `yaml:"env" json:"env"`                 // Optional file to load into the environment
 	Region     string             `yaml:"region" json:"region"`           // AWS region - allow overriding
 	Profile    string             `yaml:"profile" json:"profile"`         // AWS profile - allow overriding
-	AccountId  string             `yaml:"account_id" json:"account_id"`   // Account the credentials must belong to
+	AccountId  string             `yaml:"account_id" json:"account_id"`   // Account the credentials must belong to; defaults to AWS_ACCOUNT_ID
 	OnMismatch string             `yaml:"on_mismatch" json:"on_mismatch"` // What a wrong account means: fatal (default), warn, or stop
 }
 
@@ -44,10 +45,6 @@ func (t *Task) Execute() shared.TaskResult {
 		shared.DumpTask(t)
 	}
 
-	if t.AccountId == "" {
-		return t.Context.Error("account_id is required", nil)
-	}
-
 	// A wrong account is an expected condition, not an error, so it is classified by
 	// on_mismatch rather than on_fail. API and credential errors still use on_fail.
 	switch t.OnMismatch {
@@ -66,6 +63,14 @@ func (t *Task) Execute() shared.TaskResult {
 		cloudaws.WithProfile(t.Profile))
 	if err != nil || amazonInstance == nil {
 		return t.Context.Error("failed to create AWS client", err)
+	}
+
+	// The env file is loaded by cloudaws.New, so AWS_ACCOUNT_ID is only visible from here on
+	if t.AccountId == "" {
+		t.AccountId = os.Getenv("AWS_ACCOUNT_ID")
+	}
+	if t.AccountId == "" {
+		return t.Context.Error("account_id is required", fmt.Errorf("set the account_id field or AWS_ACCOUNT_ID in the environment file"))
 	}
 
 	// GetCallerIdentity is read-only and needs no permissions, so it runs in dry run too.
