@@ -41,6 +41,7 @@ func fakeSTS(t *testing.T, code int) {
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "secret")
 	t.Setenv("AWS_REGION", "us-east-1")
 	t.Setenv("AWS_ENDPOINT_URL", srv.URL)
+	t.Setenv("AWS_MAX_ATTEMPTS", "1")
 }
 
 func execute(t *testing.T, instructions map[string]any) shared.TaskResult {
