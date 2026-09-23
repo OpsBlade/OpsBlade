@@ -96,6 +96,16 @@ tasks:
     on_mismatch: stop
     skip: true  # Set to false to actually run this task
 
+  # Confirm the AWS credentials belong to the expected account before any AWS task
+  # changes anything. Uses the same env/region/profile resolution as the other AWS tasks.
+  #   on_mismatch: fatal | warn | stop (default fatal) applies when the account differs.
+  #   on_fail:     applies to AWS errors (bad credentials, network) as usual.
+  - name: "Confirm we are in the production AWS account"
+    task: aws_account_check
+    env: "aws-prod.env"
+    account_id: "123456789012"
+    skip: true  # Set to false to actually run this task
+
   # The save task is completely optional and allows filtering.
   # A common use case would be to store the output from a task for later processing. The file saved
   # with variables_saved can be loaded in another workflow with variables_load.

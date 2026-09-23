@@ -552,7 +552,7 @@ task behaves the same way in dry run:
 | `cmd_exec` | Command is not executed. `cmd_output` is not set. |
 | `slack_send` | No message is sent. |
 | `jira_issue_create` | Assignee and sprint lookups run for real; no issue is created. `jira_issue_id` is set to `jira-issue-dry-run`. |
-| `jira_issue_check` | Runs for real. It is read-only. |
+| `jira_issue_check`, `aws_account_check` | Run for real. They are read-only. |
 | `jira_issue_comment`, `jira_issue_attach_file` | **Run for real.** These tasks do not check dry run. Use `skip: true` while testing. |
 | `aws_ec2_instance_start`, `aws_ec2_instance_stop`, `aws_ec2_ami_create`, `aws_ec2_lt_change_image` | The AWS DryRun flag is sent, so AWS checks permissions and parameters without acting. `aws_ec2_ami_create` sets `image_id` to `AMI-none-dry-run`. |
 | `aws_ec2_ami_wait`, `aws_ec2_instance_wait` | Return immediately. |
@@ -787,11 +787,36 @@ value is reported when the task runs and is treated as an error under
 With `on_mismatch: warn` the workflow continues; guard later tasks with
 `exit_if` on `check_jira_issue_passed` if they must not run on a mismatch.
 
-### 10.5 AWS EC2
+### 10.5 AWS account and EC2
 
 All AWS tasks accept `env`, `region`, and `profile` (section 8.1). List
 tasks accept `filters`, `select`, and `fields` (section 5) and return each
 kept item as a map of the AWS response fields, reduced by `fields`.
+
+#### aws_account_check
+
+Confirms that the credentials resolve to the expected AWS account before
+anything is changed. It asks STS for the caller identity using the same
+`env`, `region`, and `profile` resolution as every other AWS task, so it
+verifies exactly the credentials the following AWS tasks will use. A wrong
+account is otherwise only visible as a confusing "does not exist" error on
+the first resource lookup, or not at all.
+
+| Field | Meaning |
+|---|---|
+| `account_id` | Required. The 12-digit account the credentials must belong to. |
+| `on_mismatch` | `fatal` (default), `warn`, or `stop`. Applies when the identity was fetched but the account differs. API and credential errors use `on_fail` as usual. |
+
+Produces: `aws_account_id`, `aws_arn`, `aws_user_id`,
+`check_aws_account_passed` (`true` or `false`). On a mismatch the variables
+are still set so a later task can inspect the outcome.
+
+```yaml
+- name: Confirm we are in the production account
+  task: aws_account_check
+  env: prod.env
+  account_id: "123456789012"
+```
 
 #### aws_ec2_instance_list
 
