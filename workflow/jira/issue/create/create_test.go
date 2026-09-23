@@ -127,6 +127,7 @@ func TestExecute_Success(t *testing.T) {
 	require.True(t, r.Success, r.Msg)
 	assert.Empty(t, r.OnFail)
 	assert.Equal(t, 4, r.Sequence)
+	assert.Equal(t, "JIRA issue OPS-1 created", r.Msg)
 	assert.Equal(t, map[string]any{"jira_issue_id": "OPS-1", "jira_project": "OPS"}, r.Data)
 
 	fields := createdFields(t, st)
@@ -167,6 +168,7 @@ func TestExecute_DryRun(t *testing.T) {
 	r := execute(t, shared.TaskContext{DryRun: true}, instr)
 	require.True(t, r.Success, r.Msg)
 	assert.Empty(t, r.OnFail)
+	assert.Equal(t, "Dry run, JIRA issue not created", r.Msg)
 	assert.Empty(t, r.Data)
 	assert.Equal(t, "jira-issue-dry-run", shared.Variables["jira_issue_id"])
 	assert.Nil(t, st.createdBody, "dry run must not create an issue")
@@ -273,6 +275,17 @@ func TestExecute_Failures(t *testing.T) {
 			assert.Equal(t, tc.wantCreated, st.createdBody != nil)
 		})
 	}
+}
+
+func TestExecute_TransportErrorInDebugMode(t *testing.T) {
+	st := defaultState()
+	srv := fakeJira(t, st)
+	srv.Close() // connection refused: go-jira returns a nil response
+	r := execute(t, shared.TaskContext{Debug: true}, baseInstructions())
+	assert.False(t, r.Success)
+	assert.Empty(t, r.OnFail)
+	assert.Contains(t, r.Msg, "failed to create JIRA issue")
+	assert.Nil(t, st.createdBody)
 }
 
 func TestExecute_MissingCredentials(t *testing.T) {

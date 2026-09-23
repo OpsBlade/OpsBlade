@@ -98,10 +98,10 @@ func (t *Task) Execute() shared.TaskResult {
 	}
 
 	// Get the new version number and convert it to a string
-	newVersion := fmt.Sprintf("%d", *newTemplate.LaunchTemplateVersion.VersionNumber)
-	if newVersion == "" {
-		return t.Context.Error("new launch template version number is missing, aborting", nil)
+	if newTemplate.LaunchTemplateVersion == nil || newTemplate.LaunchTemplateVersion.VersionNumber == nil {
+		return t.Context.Error("launch template version not returned", nil)
 	}
+	newVersion := fmt.Sprintf("%d", *newTemplate.LaunchTemplateVersion.VersionNumber)
 
 	// Set the new version as the default
 	newDefault, err := client.ModifyLaunchTemplate(context.TODO(), &ec2.ModifyLaunchTemplateInput{

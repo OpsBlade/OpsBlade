@@ -36,6 +36,18 @@ const createVersionResponse = `<CreateLaunchTemplateVersionResponse xmlns="http:
     <launchTemplateData><imageId>ami-new</imageId></launchTemplateData></launchTemplateVersion>
 </CreateLaunchTemplateVersionResponse>`
 
+// Responses to CreateLaunchTemplateVersion that omit the new version entirely
+// or omit only its number.
+const createVersionNoVersion = `<CreateLaunchTemplateVersionResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+  <requestId>test</requestId>
+</CreateLaunchTemplateVersionResponse>`
+
+const createVersionNoNumber = `<CreateLaunchTemplateVersionResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
+  <requestId>test</requestId>
+  <launchTemplateVersion><launchTemplateId>lt-1</launchTemplateId>
+    <launchTemplateData><imageId>ami-new</imageId></launchTemplateData></launchTemplateVersion>
+</CreateLaunchTemplateVersionResponse>`
+
 const modifyResponse = `<ModifyLaunchTemplateResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">
   <requestId>test</requestId>
   <launchTemplate><launchTemplateId>lt-1</launchTemplateId><launchTemplateName>web</launchTemplateName>
@@ -167,6 +179,16 @@ func TestExecute_Errors(t *testing.T) {
 			wantMsg: "failed to create new launch template version: ",
 		},
 		{
+			name:    "create returns no version",
+			replies: map[string]reply{"DescribeLaunchTemplateVersions": ok(describeVersions(3)), "CreateLaunchTemplateVersion": ok(createVersionNoVersion)},
+			wantMsg: "launch template version not returned",
+		},
+		{
+			name:    "create returns no version number",
+			replies: map[string]reply{"DescribeLaunchTemplateVersions": ok(describeVersions(3)), "CreateLaunchTemplateVersion": ok(createVersionNoNumber)},
+			wantMsg: "launch template version not returned",
+		},
+		{
 			name: "modify fails",
 			replies: map[string]reply{
 				"DescribeLaunchTemplateVersions": ok(describeVersions(3)),
@@ -178,12 +200,15 @@ func TestExecute_Errors(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			serve(t, tc.replies)
+			rec := serve(t, tc.replies)
 			r := awstest.Run(t, taskID, shared.TaskContext{DryRun: tc.dryRun}, instructions())
 			assert.False(t, r.Success)
 			assert.Empty(t, r.OnFail)
 			assert.Contains(t, r.Msg, tc.wantMsg)
 			assert.Empty(t, r.Data)
+			if tc.wantMsg == "launch template version not returned" {
+				assert.Equal(t, 0, rec.Count("ModifyLaunchTemplate"))
+			}
 		})
 	}
 }

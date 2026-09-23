@@ -34,6 +34,7 @@ func selectTestDoc() map[string]any {
 		"ts":    "2020-01-02T03:04:05Z",
 		"list":  []any{map[string]any{"k": "a"}, map[string]any{"k": "b"}},
 		"m":     map[string]any{"k": "v"},
+		"nul":   nil,
 	}
 }
 
@@ -46,6 +47,12 @@ func TestApplySelectionCriteria(t *testing.T) {
 		{name: "no criteria selects", criteria: nil, want: true},
 		{name: "float equal", criteria: []SelectCriteria{{Field: "f", Value: 1.5, Compare: Equals}}, want: true},
 		{name: "number equal via float", criteria: []SelectCriteria{{Field: "count", Value: 5.0, Compare: Equals}}, want: true},
+		{name: "number equal via int", criteria: []SelectCriteria{{Field: "count", Value: 5, Compare: Equals}}, want: true},
+		{name: "number greater via int", criteria: []SelectCriteria{{Field: "count", Value: 3, Compare: MoreThan}}, want: true},
+		{name: "number less via int64", criteria: []SelectCriteria{{Field: "count", Value: int64(6), Compare: LessThan}}, want: true},
+		{name: "float compared with int", criteria: []SelectCriteria{{Field: "f", Value: 1, Compare: MoreThan}}, want: true},
+		{name: "null field matches nothing", criteria: []SelectCriteria{{Field: "nul", Value: "a", Compare: Equals}}, want: false},
+		{name: "null field not", criteria: []SelectCriteria{{Field: "nul", Value: "a", Compare: Not}}, want: false},
 		{name: "bool equal", criteria: []SelectCriteria{{Field: "b", Value: true, Compare: Equals}}, want: true},
 		{name: "string equal case insensitive", criteria: []SelectCriteria{{Field: "s", Value: "hello", Compare: Equals}}, want: true},
 		{name: "operator case insensitive", criteria: []SelectCriteria{{Field: "s", Value: "hello", Compare: "EQUAL"}}, want: true},
@@ -53,6 +60,7 @@ func TestApplySelectionCriteria(t *testing.T) {
 		{name: "string begins", criteria: []SelectCriteria{{Field: "S", Value: "he", Compare: BeginsWith}}, want: true},
 		{name: "string not", criteria: []SelectCriteria{{Field: "s", Value: "other", Compare: Not}}, want: true},
 		{name: "string not fails on match", criteria: []SelectCriteria{{Field: "s", Value: "Hello", Compare: Not}}, want: false},
+		{name: "string not case insensitive", criteria: []SelectCriteria{{Field: "s", Value: "hello", Compare: Not}}, want: false},
 		{name: "wildcard list match", criteria: []SelectCriteria{{Field: "list.*.k", Value: "b", Compare: Equals}}, want: true},
 		{name: "wildcard list no match", criteria: []SelectCriteria{{Field: "list.*.k", Value: "z", Compare: Equals}}, want: false},
 		{name: "list without wildcard", criteria: []SelectCriteria{{Field: "list.k", Value: "b", Compare: Equals}}, want: true},
@@ -115,6 +123,12 @@ func TestMatchesCriteriaTyped(t *testing.T) {
 		want  bool
 	}{
 		{name: "nil pointer", value: nilStr, crit: SelectCriteria{Value: "b", Compare: Equals}, want: false},
+		{name: "nil value", value: nil, crit: SelectCriteria{Value: "b", Compare: Equals}, want: false},
+		// The operator is case-insensitive for every value type, not only strings
+		{name: "number uppercase operator", value: 5.0, crit: SelectCriteria{Value: 5, Compare: "EQUAL"}, want: true},
+		{name: "number uppercase not", value: 5.0, crit: SelectCriteria{Value: 6, Compare: "NOT"}, want: true},
+		{name: "bool uppercase operator", value: true, crit: SelectCriteria{Value: true, Compare: "Equal"}, want: true},
+		{name: "string not ignores case", value: "B", crit: SelectCriteria{Value: "b", Compare: Not}, want: false},
 		{name: "pointer dereferenced", value: &str, crit: SelectCriteria{Value: "b", Compare: Equals}, want: true},
 		{name: "string greater", value: "b", crit: SelectCriteria{Value: "a", Compare: MoreThan}, want: true},
 		{name: "string less", value: "b", crit: SelectCriteria{Value: "z", Compare: LessThan}, want: true},
@@ -125,6 +139,12 @@ func TestMatchesCriteriaTyped(t *testing.T) {
 		{name: "int equal", value: 3, crit: SelectCriteria{Value: 3, Compare: Equals}, want: true},
 		{name: "int unsupported operator", value: 3, crit: SelectCriteria{Value: 4, Compare: Contains}, want: false},
 		{name: "int wrong criteria type", value: 3, crit: SelectCriteria{Value: "3", Compare: Equals}, want: false},
+		{name: "int vs float criteria", value: 3, crit: SelectCriteria{Value: 3.0, Compare: Equals}, want: true},
+		{name: "int vs int64 criteria", value: 3, crit: SelectCriteria{Value: int64(2), Compare: MoreThan}, want: true},
+		{name: "int64 vs int criteria", value: int64(3), crit: SelectCriteria{Value: 3, Compare: Equals}, want: true},
+		{name: "int64 vs float criteria", value: int64(3), crit: SelectCriteria{Value: 4.0, Compare: LessThan}, want: true},
+		{name: "float vs int criteria", value: 1.5, crit: SelectCriteria{Value: 1, Compare: MoreThan}, want: true},
+		{name: "float vs int64 criteria", value: 1.5, crit: SelectCriteria{Value: int64(2), Compare: Not}, want: true},
 		{name: "int64 greater", value: int64(3), crit: SelectCriteria{Value: int64(2), Compare: MoreThan}, want: true},
 		{name: "int64 less", value: int64(3), crit: SelectCriteria{Value: int64(4), Compare: LessThan}, want: true},
 		{name: "int64 not", value: int64(3), crit: SelectCriteria{Value: int64(4), Compare: Not}, want: true},

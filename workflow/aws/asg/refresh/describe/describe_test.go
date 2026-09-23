@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -129,17 +130,18 @@ func TestExecute_NoGroups(t *testing.T) {
 
 func TestExecute_Errors(t *testing.T) {
 	cases := []struct {
-		name    string
-		status  int
-		body    string
-		instr   map[string]any
-		wantMsg string
+		name       string
+		status     int
+		body       string
+		instr      map[string]any
+		wantMsg    string
+		wantPrefix string
 	}{
 		{
 			name: "api error", status: http.StatusBadRequest,
 			body:    awstest.ASGError("ValidationError", "AutoScalingGroup name not found"),
 			instr:   map[string]any{"asg_name": "web-asg"},
-			wantMsg: "api error ValidationError",
+			wantMsg: "api error ValidationError", wantPrefix: "error describing instance refreshes: ",
 		},
 		{
 			name: "invalid select operator", status: http.StatusOK, body: "",
@@ -159,6 +161,9 @@ func TestExecute_Errors(t *testing.T) {
 			assert.False(t, r.Success)
 			assert.Empty(t, r.OnFail)
 			assert.Contains(t, r.Msg, tc.wantMsg)
+			if tc.wantPrefix != "" {
+				assert.True(t, strings.HasPrefix(r.Msg, tc.wantPrefix), r.Msg)
+			}
 			assert.Empty(t, r.Data)
 		})
 	}

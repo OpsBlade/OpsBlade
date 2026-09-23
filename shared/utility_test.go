@@ -55,6 +55,8 @@ func TestOneField(t *testing.T) {
 		{name: "pointer", in: fields{P: &one}, want: true},
 		{name: "slice", in: fields{L: []string{"a"}}, want: true},
 		{name: "map", in: fields{M: map[string]string{"a": "b"}}, want: true},
+		{name: "empty slice", in: fields{L: []string{}}, want: false},
+		{name: "empty map", in: fields{M: map[string]string{}}, want: false},
 	}
 
 	for _, tt := range tests {

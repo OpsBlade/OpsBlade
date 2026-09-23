@@ -96,6 +96,51 @@ func TestNew_Profile(t *testing.T) {
 	}
 }
 
+// A task's profile wins over static keys left in the process environment.
+func TestNew_ProfileOverridesStaticKeys(t *testing.T) {
+	dir := isolate(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "credentials"),
+		[]byte("[test]\naws_access_key_id = AKIAPROFILE\naws_secret_access_key = profilesecret\n"), 0o600))
+	t.Setenv("AWS_ACCESS_KEY_ID", "AKIAENV")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "envsecret")
+
+	c, err := New(WithProfile("test"))
+	require.NoError(t, err)
+	assert.Equal(t, "test", c.Config.Profile)
+	assert.Equal(t, "eu-west-1", c.AWS.Region)
+
+	creds, err := c.AWS.Credentials.Retrieve(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, "AKIAPROFILE", creds.AccessKeyID)
+	assert.Equal(t, "profilesecret", creds.SecretAccessKey)
+}
+
+// A task's region field wins over AWS_REGION whichever credential path is taken.
+func TestNew_RegionOptionOverridesEnvironment(t *testing.T) {
+	cases := []struct {
+		name    string
+		options []Option
+		env     map[string]string
+	}{
+		{"static keys", nil, map[string]string{"AWS_ACCESS_KEY_ID": "AKIAEXAMPLE", "AWS_SECRET_ACCESS_KEY": "secret"}},
+		{"profile", []Option{WithProfile("test")}, nil},
+		{"default chain", nil, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			isolate(t)
+			t.Setenv("AWS_REGION", "us-east-1")
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			c, err := New(append(tc.options, WithRegion("ap-northeast-1"))...)
+			require.NoError(t, err)
+			assert.Equal(t, "ap-northeast-1", c.Config.Region)
+			assert.Equal(t, "ap-northeast-1", c.AWS.Region)
+		})
+	}
+}
+
 func TestNew_ProfileMissing(t *testing.T) {
 	isolate(t)
 	c, err := New(WithProfile("nonexistent"))

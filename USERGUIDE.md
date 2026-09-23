@@ -242,7 +242,7 @@ Operators:
 | compare | Meaning |
 |---|---|
 | `equal` | Equal. Case-insensitive for strings. |
-| `not` | Not equal. Case-sensitive for strings. |
+| `not` | Not equal. Case-insensitive for strings. |
 | `contains` | String contains the value, case-insensitive. |
 | `begins` | String begins with the value, case-insensitive. |
 | `greater` | Greater than. Numeric for numbers, lexical for strings. |
@@ -524,10 +524,10 @@ the file, so a variable exported before running OpsBlade takes precedence.
 
 For each AWS task, in order:
 
-1. If both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set, they are
-   used as static credentials with `AWS_REGION`.
-2. Otherwise, if the task has a `profile` field, that named profile from
+1. If the task has a `profile` field, that named profile from
    `~/.aws/config` and `~/.aws/credentials` is used.
+2. Otherwise, if both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are
+   set, they are used as static credentials with `AWS_REGION`.
 3. Otherwise the SDK default chain applies: environment, shared config,
    instance or container role.
 

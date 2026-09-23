@@ -6,6 +6,7 @@ package stop
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,14 +28,15 @@ const stopResponse = `<StopInstancesResponse xmlns="http://ec2.amazonaws.com/doc
 
 func TestExecute(t *testing.T) {
 	cases := []struct {
-		name     string
-		dryRun   bool
-		force    bool
-		status   int
-		body     string
-		wantOK   bool
-		wantMsg  string
-		wantData map[string]any
+		name       string
+		dryRun     bool
+		force      bool
+		status     int
+		body       string
+		wantOK     bool
+		wantMsg    string
+		wantPrefix string
+		wantData   map[string]any
 	}{
 		{
 			name: "stopping", status: http.StatusOK, body: stopResponse,
@@ -47,7 +49,7 @@ func TestExecute(t *testing.T) {
 		{
 			name: "api error", status: http.StatusBadRequest,
 			body:    awstest.EC2Error("IncorrectInstanceState", "The instance is not in a state from which it can be stopped"),
-			wantMsg: "api error IncorrectInstanceState",
+			wantMsg: "api error IncorrectInstanceState", wantPrefix: "failed to stop instance: ",
 		},
 		{
 			name: "dry run accepted", dryRun: true, status: http.StatusPreconditionFailed,
@@ -57,7 +59,7 @@ func TestExecute(t *testing.T) {
 		{
 			name: "dry run with real error", dryRun: true, status: http.StatusForbidden,
 			body:    awstest.EC2Error("UnauthorizedOperation", "You are not authorized to perform this operation."),
-			wantMsg: "api error UnauthorizedOperation",
+			wantMsg: "api error UnauthorizedOperation", wantPrefix: "failed to stop instance: ",
 		},
 	}
 	for _, tc := range cases {
@@ -73,6 +75,9 @@ func TestExecute(t *testing.T) {
 			assert.Equal(t, tc.wantOK, r.Success)
 			assert.Empty(t, r.OnFail)
 			assert.Contains(t, r.Msg, tc.wantMsg)
+			if tc.wantPrefix != "" {
+				assert.True(t, strings.HasPrefix(r.Msg, tc.wantPrefix), r.Msg)
+			}
 			if tc.wantData == nil {
 				assert.Empty(t, r.Data)
 			} else {

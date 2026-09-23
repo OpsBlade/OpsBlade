@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 Tenebris Technologies Inc.
 // This software is licensed under the MIT License (see LICENSE for details).
 
-package load
+package set
 
 import (
 	"encoding/json"

@@ -12,6 +12,11 @@ import (
 
 func (j *CloudJira) ResponseToString(response *jira.Response) string {
 
+	// go-jira returns a nil response on transport errors
+	if response == nil || response.Response == nil {
+		return "no response"
+	}
+
 	// Access the underlying *http.Response
 	httpResponse := response.Response
 

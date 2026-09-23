@@ -66,7 +66,7 @@ func (t *Task) Execute() shared.TaskResult {
 		if t.Context.DryRun && shared.DryRunErrCheck(err) {
 			return t.Context.Result(true, fmt.Sprintf("Dryrun, AWS API returned: %s", err.Error()), nil)
 		}
-		return t.Context.Error("failed to start instance", err)
+		return t.Context.Error("failed to stop instance", err)
 	}
 
 	data := make(map[string]any)

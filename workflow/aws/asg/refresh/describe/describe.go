@@ -82,7 +82,7 @@ func (t *Task) Execute() shared.TaskResult {
 		for paginator.HasMorePages() {
 			page, err := paginator.NextPage(context.TODO())
 			if err != nil {
-				return t.Context.Error("error describing autoscaling groups", err)
+				return t.Context.Error("error describing instance refreshes", err)
 			}
 
 			// Iterate over the results and apply selection and field filtering

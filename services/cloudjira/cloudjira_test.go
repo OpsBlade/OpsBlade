@@ -357,4 +357,12 @@ func TestResponseToString(t *testing.T) {
 		resp := &jira.Response{Response: &http.Response{Body: failingBody{}}}
 		assert.Equal(t, "error reading response body: boom", j.ResponseToString(resp))
 	})
+
+	t.Run("nil response", func(t *testing.T) {
+		assert.Equal(t, "no response", j.ResponseToString(nil))
+	})
+
+	t.Run("nil http response", func(t *testing.T) {
+		assert.Equal(t, "no response", j.ResponseToString(&jira.Response{}))
+	})
 }

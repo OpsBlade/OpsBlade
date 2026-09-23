@@ -117,6 +117,7 @@ func (t *Task) Execute() shared.TaskResult {
 
 	if t.Context.DryRun {
 		shared.SetVar("jira_issue_id", "jira-issue-dry-run")
+		return t.Context.Result(true, "Dry run, JIRA issue not created", data)
 	} else {
 		createdIssue, response, issueErr := client.Issue.Create(&jiraIssue)
 		if issueErr != nil {
@@ -154,5 +155,5 @@ func (t *Task) Execute() shared.TaskResult {
 			data["jira_assignee_account_id"] = userAccountID
 		}
 	}
-	return t.Context.Result(true, fmt.Sprintf("JIRA issue %s created", data), data)
+	return t.Context.Result(true, fmt.Sprintf("JIRA issue %s created", data["jira_issue_id"]), data)
 }

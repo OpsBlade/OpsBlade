@@ -41,6 +41,10 @@ func OneField(s any) bool {
 			if field.Uint() != 0 {
 				return true
 			}
+		case reflect.Slice, reflect.Map:
+			if field.Len() > 0 {
+				return true
+			}
 		default:
 			if !field.IsZero() {
 				return true

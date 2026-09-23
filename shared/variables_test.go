@@ -148,3 +148,41 @@ func TestProcessVars(t *testing.T) {
 	assert.Equal(t, 1, in.Num)
 	assert.Equal(t, "{{x}}", in.hidden, "unexported fields are left alone")
 }
+
+func TestProcessVarsNestedAny(t *testing.T) {
+	resetVars(t)
+	SetVar("x", "X")
+
+	type inner struct {
+		S string
+	}
+	type target struct {
+		MapAny   map[string]any
+		MapSlice []map[string]any
+		Iface    any
+	}
+
+	in := target{
+		MapAny: map[string]any{
+			"nested": map[string]any{"s": "{{x}}", "n": 5, "b": true},
+			"list":   []any{map[string]any{"s": "{{x}}"}, inner{S: "{{x}}"}, 7},
+			"n":      5,
+			"b":      true,
+			"f":      1.5,
+		},
+		MapSlice: []map[string]any{{"s": "{{x}}", "n": 5}},
+		Iface:    inner{S: "{{x}}"},
+	}
+
+	ProcessVars(&in)
+
+	assert.Equal(t, map[string]any{
+		"nested": map[string]any{"s": "X", "n": 5, "b": true},
+		"list":   []any{map[string]any{"s": "X"}, inner{S: "X"}, 7},
+		"n":      5,
+		"b":      true,
+		"f":      1.5,
+	}, in.MapAny, "nested maps and slices are resolved; non-string scalars keep their type")
+	assert.Equal(t, []map[string]any{{"s": "X", "n": 5}}, in.MapSlice)
+	assert.Equal(t, inner{S: "X"}, in.Iface, "a struct held in an any field is resolved")
+}

@@ -18,6 +18,7 @@ Two things changed that existing cron jobs and wrapper scripts may depend on:
 * The startup banner (name, version, copyright) is now written to **stderr** so that stdout carries only task output.
 * Alert bodies have a new layout: each entry is a severity label followed by the task number and type, its name, the error, and the action taken. The `notify.email` block gains a `transcript` option, default `always`, which emails the run's full output after every run. If you already email stdout from cron, set `transcript: error` or `never`, or drop the cron redirect.
 * `jira_issue_check` no longer treats an issue that is not in the required state as an error. By default it now stops the workflow cleanly with **exit code 0** and no alert. Jira API and credential errors are still failures governed by `on_fail`. See USERGUIDE.md section 10.4.
+* A task's `profile` field now takes precedence over `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the environment, and a task's `region` field now overrides `AWS_REGION` as documented. Previously both were silently ignored when the environment variables were set. See USERGUIDE.md section 8.1.
 
 ## **ATTENTION: BREAKING CONFIG CHANGE in 0.1.8**
 
@@ -49,7 +50,12 @@ cd OpsBlade
 make build
 ```
 
-`make build` stamps the binary with the git commit and build time; `opsblade --version` shows them. A plain `go build -o opsblade` also works and produces an unstamped binary. `make build-all` cross-compiles for Linux and macOS on amd64 and arm64 into `bin/`. `make check` runs the full regression suite (build, vet, race-enabled tests) and exits non-zero on any failure; it is the gate for CI/CD pipelines. `make test` and `./test.sh` are equivalent.
+A plain `make` runs the test suite and then builds, so the binary is only produced when the tests pass. The individual targets:
+
+* `make test` runs the full regression suite (build, vet, race-enabled tests) and exits non-zero on any failure. It is the gate for developers and CI/CD pipelines alike; `make check` is an alias for existing pipelines and `./test.sh -x` keeps the test log.
+* `make build` builds the binary without running tests. It stamps the binary with the git commit and build time; `opsblade --version` shows them. A plain `go build -o opsblade` also works and produces an unstamped binary. `make build-all` cross-compiles for Linux and macOS on amd64 and arm64 into `bin/`.
+* `make install` builds and then copies the binary to `/usr/local/bin` when run as root, or to `~/bin` otherwise. It never creates `~/bin`.
+* `make clean` removes the build output and clears the Go test cache.
 
 Users who intend to compile and run on different computers may wish to set CGO_ENABLED=0 to avoid reliance on the system's C libraries.
 

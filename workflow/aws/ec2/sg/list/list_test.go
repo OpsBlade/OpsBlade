@@ -6,6 +6,7 @@ package list
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,17 +77,18 @@ func TestExecute_SelectAndFields(t *testing.T) {
 
 func TestExecute_Errors(t *testing.T) {
 	cases := []struct {
-		name    string
-		status  int
-		body    string
-		instr   map[string]any
-		wantMsg string
+		name       string
+		status     int
+		body       string
+		instr      map[string]any
+		wantMsg    string
+		wantPrefix string
 	}{
 		{
 			name: "api error", status: http.StatusBadRequest,
 			body:    awstest.EC2Error("InvalidGroup.NotFound", "The security group does not exist"),
 			instr:   map[string]any{},
-			wantMsg: "api error InvalidGroup.NotFound",
+			wantMsg: "api error InvalidGroup.NotFound", wantPrefix: "error describing security groups: ",
 		},
 		{
 			name: "invalid select operator", status: http.StatusOK, body: describeResponse,
@@ -106,6 +108,9 @@ func TestExecute_Errors(t *testing.T) {
 			assert.False(t, r.Success)
 			assert.Empty(t, r.OnFail)
 			assert.Contains(t, r.Msg, tc.wantMsg)
+			if tc.wantPrefix != "" {
+				assert.True(t, strings.HasPrefix(r.Msg, tc.wantPrefix), r.Msg)
+			}
 			assert.Empty(t, r.Data)
 		})
 	}

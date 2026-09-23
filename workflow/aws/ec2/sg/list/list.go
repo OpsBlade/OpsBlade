@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Tenebris Technologies Inc.
+// This software is licensed under the MIT License (see LICENSE for details).
+
 package list
 
 import (
@@ -66,7 +69,7 @@ func (t *Task) Execute() shared.TaskResult {
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(context.TODO())
 		if err != nil {
-			return t.Context.Error("error describing instances", err)
+			return t.Context.Error("error describing security groups", err)
 		}
 
 		// Iterate over the results and apply selection criteria

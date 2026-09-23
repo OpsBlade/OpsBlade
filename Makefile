@@ -20,7 +20,12 @@ LDFLAGS=-ldflags "-X $(APP_PKG).gitCommit=$(GIT_COMMIT) -X $(APP_PKG).buildTime=
 
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 
-.PHONY: build build-all check test vet clean
+.PHONY: all build build-all check test vet clean install
+
+# The default is test-then-build: binaries are produced only when the whole
+# suite has passed. The recursive make keeps the order under -j.
+all: test
+	@$(MAKE) --no-print-directory build
 
 build:
 	go build $(LDFLAGS) -o $(BINARY) .
@@ -33,11 +38,13 @@ build-all:
 		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build $(LDFLAGS) -o bin/$(BINARY)-$$os-$$arch . || exit 1; \
 	done
 
-# check is the CI/CD gate: the full regression suite, exit non-zero on any failure
-check:
+# test is the one gate, for developers and CI alike: the full regression
+# suite (build, vet, race-enabled tests), exit non-zero on any failure.
+test:
 	./test.sh
 
-test: check
+# check is kept as an alias for existing pipelines
+check: test
 
 vet:
 	go vet ./...
@@ -45,3 +52,12 @@ vet:
 clean:
 	rm -f $(BINARY)
 	rm -rf bin
+	go clean -testcache
+
+# install copies the freshly built binary: /usr/local/bin as root, ~/bin
+# otherwise. It never creates ~/bin.
+install: build
+	@if [ "$$(id -u)" -eq 0 ]; then dest=/usr/local/bin; \
+	elif [ -d "$$HOME/bin" ]; then dest="$$HOME/bin"; \
+	else echo "make install: nowhere to install. A system install needs 'sudo make install'; a personal install needs ~/bin to exist." >&2; exit 1; fi; \
+	install -m 0755 $(BINARY) "$$dest/$(BINARY)" && echo "installed $$dest/$(BINARY)"

@@ -62,6 +62,26 @@ const describeResponse = `<DescribeAutoScalingGroupsResponse xmlns="http://autos
   <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
 </DescribeAutoScalingGroupsResponse>`
 
+// sparseResponse omits fields the API normally returns: no MinSize or
+// DesiredCapacity on the first group, and no AutoScalingGroupName on the
+// second. A missing size counts as zero and a missing name as empty.
+const sparseResponse = `<DescribeAutoScalingGroupsResponse xmlns="http://autoscaling.amazonaws.com/doc/2011-01-01/">
+  <DescribeAutoScalingGroupsResult>
+    <AutoScalingGroups>
+      <member>
+        <AutoScalingGroupName>nosize-asg</AutoScalingGroupName>
+        <MaxSize>3</MaxSize>
+        <LaunchTemplate><LaunchTemplateId>lt-web</LaunchTemplateId><Version>$Default</Version></LaunchTemplate>
+      </member>
+      <member>
+        <MinSize>1</MinSize><MaxSize>3</MaxSize>
+        <LaunchTemplate><LaunchTemplateId>lt-web</LaunchTemplateId><Version>$Default</Version></LaunchTemplate>
+      </member>
+    </AutoScalingGroups>
+  </DescribeAutoScalingGroupsResult>
+  <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
+</DescribeAutoScalingGroupsResponse>`
+
 const refreshResponse = `<StartInstanceRefreshResponse xmlns="http://autoscaling.amazonaws.com/doc/2011-01-01/">
   <StartInstanceRefreshResult><InstanceRefreshId>08b91cf7-8fa6-48af-b6a6-d227f40f1b9b</InstanceRefreshId></StartInstanceRefreshResult>
   <ResponseMetadata><RequestId>test</RequestId></ResponseMetadata>
@@ -119,6 +139,20 @@ func TestExecute_Refresh(t *testing.T) {
 	assert.Equal(t, "110", f.Get("Preferences.MaxHealthyPercentage"))
 	assert.Equal(t, "100", f.Get("Preferences.MinHealthyPercentage"))
 	assert.Equal(t, "300", f.Get("Preferences.InstanceWarmup"))
+}
+
+func TestExecute_SparseGroups(t *testing.T) {
+	rec := serve(t, map[string]reply{
+		"DescribeAutoScalingGroups": ok(sparseResponse),
+		"StartInstanceRefresh":      ok(refreshResponse),
+	})
+	r := awstest.Run(t, taskID, shared.TaskContext{}, map[string]any{"launch_templates": []string{"lt-web"}})
+	require.True(t, r.Success, r.Msg)
+	assert.Equal(t, 1, r.Data["asg_refresh_count"])
+	assert.Equal(t, map[string]string{"": "success"}, r.Data["asg_refresh_results"])
+	refresh := rec.Forms("StartInstanceRefresh")
+	require.Len(t, refresh, 1)
+	assert.Equal(t, "", refresh[0].Get("AutoScalingGroupName"))
 }
 
 func TestExecute_SkipMatchingFalse(t *testing.T) {

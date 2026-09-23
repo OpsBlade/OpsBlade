@@ -122,7 +122,7 @@ func (t *Task) Execute() shared.TaskResult {
 				continue
 			}
 
-			if *asg.MinSize == 0 && *asg.DesiredCapacity == 0 {
+			if aws.ToInt32(asg.MinSize) == 0 && aws.ToInt32(asg.DesiredCapacity) == 0 {
 				continue
 			}
 
@@ -139,10 +139,10 @@ func (t *Task) Execute() shared.TaskResult {
 				}
 
 				if selected {
-					asgList = append(asgList, *asg.AutoScalingGroupName)
+					asgList = append(asgList, aws.ToString(asg.AutoScalingGroupName))
 				}
 			} else {
-				asgList = append(asgList, *asg.AutoScalingGroupName)
+				asgList = append(asgList, aws.ToString(asg.AutoScalingGroupName))
 			}
 		}
 	}

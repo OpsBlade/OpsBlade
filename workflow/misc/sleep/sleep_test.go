@@ -35,6 +35,7 @@ func TestExecute_DryRunDoesNotSleep(t *testing.T) {
 	start := time.Now()
 	r := execute(t, shared.TaskContext{DryRun: true}, map[string]any{"sleep": 30})
 	require.True(t, r.Success, r.Msg)
+	assert.Equal(t, "Dry run, would sleep for 30 seconds", r.Msg)
 	assert.Less(t, time.Since(start), time.Second)
 }
 

@@ -55,6 +55,16 @@ func TestSelectFields(t *testing.T) {
 			want:   map[string]any{"Nested.A": "a"},
 		},
 		{
+			name:   "dotted path into list without wildcard",
+			fields: []string{"Tags.Key"},
+			want:   map[string]any{"tags.key": []any{"k1", "k2"}},
+		},
+		{
+			name:   "dotted path flattened through map",
+			fields: []string{"Nested.C"},
+			want:   map[string]any{"nested.c": map[string]any{"B": "c"}},
+		},
+		{
 			name:   "deep dotted path",
 			fields: []string{"nested.b.c"},
 			want:   map[string]any{"Nested.B.C": "c"},
