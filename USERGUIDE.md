@@ -700,7 +700,9 @@ Posts a message to a Slack incoming webhook.
 
 Produces: `slack_subject`, `slack_body`. A missing webhook or a non-200
 response is a failure. Use `on_fail: warn` so a broken channel does not
-abort real work.
+abort real work. A message longer than Slack's 3000-character block limit
+is split across several blocks on line boundaries, so long `pretty` lists
+still send.
 
 ### 10.4 Jira
 
