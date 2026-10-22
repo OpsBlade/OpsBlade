@@ -85,6 +85,11 @@ func matchesCriteria(value any, criteria SelectCriteria) bool {
 		v = v.Elem()
 	}
 
+	// A null or missing value matches nothing
+	if !v.IsValid() {
+		return false
+	}
+
 	// Extract interface{} again after dereferencing
 	actualValue := v.Interface()
 
@@ -157,7 +162,7 @@ func matchesCriteria(value any, criteria SelectCriteria) bool {
 		case Contains:
 			return strings.Contains(strings.ToLower(typedVal), strings.ToLower(wanted))
 		case Not:
-			return typedVal != wanted
+			return !strings.EqualFold(typedVal, wanted)
 		case MoreThan:
 			return typedVal > wanted
 		case LessThan:
@@ -167,54 +172,23 @@ func matchesCriteria(value any, criteria SelectCriteria) bool {
 		default:
 			return false
 		}
-	case int:
-		wanted, ok := criteria.Value.(int)
+	case int, int64, float64:
+		// Documents are JSON round-tripped so numbers arrive as float64, while YAML
+		// criteria may be int, int64, or float64. Compare numerically regardless.
+		actual, _ := toFloat64(typedVal)
+		wanted, ok := toFloat64(criteria.Value)
 		if !ok {
 			return false
 		}
-		switch criteria.Compare {
+		switch criteria.Compare.ToLower() {
 		case Equals:
-			return typedVal == wanted
+			return actual == wanted
 		case Not:
-			return typedVal != wanted
+			return actual != wanted
 		case MoreThan:
-			return typedVal > wanted
+			return actual > wanted
 		case LessThan:
-			return typedVal < wanted
-		default:
-			return false
-		}
-	case float64:
-		wanted, ok := criteria.Value.(float64)
-		if !ok {
-			return false
-		}
-		switch criteria.Compare {
-		case Equals:
-			return typedVal == wanted
-		case Not:
-			return typedVal != wanted
-		case MoreThan:
-			return typedVal > wanted
-		case LessThan:
-			return typedVal < wanted
-		default:
-			return false
-		}
-	case int64:
-		wanted, ok := criteria.Value.(int64)
-		if !ok {
-			return false
-		}
-		switch criteria.Compare {
-		case Equals:
-			return typedVal == wanted
-		case Not:
-			return typedVal != wanted
-		case MoreThan:
-			return typedVal > wanted
-		case LessThan:
-			return typedVal < wanted
+			return actual < wanted
 		default:
 			return false
 		}
@@ -223,7 +197,7 @@ func matchesCriteria(value any, criteria SelectCriteria) bool {
 		if !ok {
 			return false
 		}
-		switch criteria.Compare {
+		switch criteria.Compare.ToLower() {
 		case Equals:
 			return typedVal == wanted
 		case Not:
@@ -233,6 +207,20 @@ func matchesCriteria(value any, criteria SelectCriteria) bool {
 		}
 	}
 	return false
+}
+
+// toFloat64 converts an int, int64, or float64 to float64 for numeric comparison
+func toFloat64(v any) (float64, bool) {
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case float64:
+		return n, true
+	default:
+		return 0, false
+	}
 }
 
 func parsePossibleDate(s string) (time.Time, error) {

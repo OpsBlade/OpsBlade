@@ -242,7 +242,7 @@ Operators:
 | compare | Meaning |
 |---|---|
 | `equal` | Equal. Case-insensitive for strings. |
-| `not` | Not equal. Case-sensitive for strings. |
+| `not` | Not equal. Case-insensitive for strings. |
 | `contains` | String contains the value, case-insensitive. |
 | `begins` | String begins with the value, case-insensitive. |
 | `greater` | Greater than. Numeric for numbers, lexical for strings. |
@@ -515,7 +515,7 @@ the file, so a variable exported before running OpsBlade takes precedence.
 
 | Service | Variables | Notes |
 |---|---|---|
-| AWS | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | See 8.1. |
+| AWS | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | See 8.1. `AWS_ACCOUNT_ID` is optional and is the default `account_id` for `aws_account_check` (section 10.5). |
 | Jira | `JIRA_USER`, `JIRA_TOKEN`, `JIRA_URL` | All three are required. `JIRA_USER` is the account email, `JIRA_TOKEN` an API token, `JIRA_URL` the site base URL such as `https://example.atlassian.net/`. |
 | Slack | `SLACK_WEBHOOK` | An incoming webhook URL. An `env_suffix` on `slack_send` or `notify.slack` appends to the name, so `_DEV` reads `SLACK_WEBHOOK_DEV`. |
 | Email | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | Notifications only. `SMTP_HOST` is required. Port defaults to 587; 465 selects implicit TLS, other ports use STARTTLS when the server offers it. `SMTP_USER` enables PLAIN authentication with `SMTP_PASS`. The `from` and `to` addresses themselves are set in the `notify.email` block (section 7), not in the environment. |
@@ -524,10 +524,10 @@ the file, so a variable exported before running OpsBlade takes precedence.
 
 For each AWS task, in order:
 
-1. If both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set, they are
-   used as static credentials with `AWS_REGION`.
-2. Otherwise, if the task has a `profile` field, that named profile from
+1. If the task has a `profile` field, that named profile from
    `~/.aws/config` and `~/.aws/credentials` is used.
+2. Otherwise, if both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are
+   set, they are used as static credentials with `AWS_REGION`.
 3. Otherwise the SDK default chain applies: environment, shared config,
    instance or container role.
 
@@ -552,7 +552,7 @@ task behaves the same way in dry run:
 | `cmd_exec` | Command is not executed. `cmd_output` is not set. |
 | `slack_send` | No message is sent. |
 | `jira_issue_create` | Assignee and sprint lookups run for real; no issue is created. `jira_issue_id` is set to `jira-issue-dry-run`. |
-| `jira_issue_check` | Runs for real. It is read-only. |
+| `jira_issue_check`, `aws_account_check` | Run for real. They are read-only. |
 | `jira_issue_comment`, `jira_issue_attach_file` | **Run for real.** These tasks do not check dry run. Use `skip: true` while testing. |
 | `aws_ec2_instance_start`, `aws_ec2_instance_stop`, `aws_ec2_ami_create`, `aws_ec2_lt_change_image` | The AWS DryRun flag is sent, so AWS checks permissions and parameters without acting. `aws_ec2_ami_create` sets `image_id` to `AMI-none-dry-run`. |
 | `aws_ec2_ami_wait`, `aws_ec2_instance_wait` | Return immediately. |
@@ -787,11 +787,39 @@ value is reported when the task runs and is treated as an error under
 With `on_mismatch: warn` the workflow continues; guard later tasks with
 `exit_if` on `check_jira_issue_passed` if they must not run on a mismatch.
 
-### 10.5 AWS EC2
+### 10.5 AWS account and EC2
 
 All AWS tasks accept `env`, `region`, and `profile` (section 8.1). List
 tasks accept `filters`, `select`, and `fields` (section 5) and return each
 kept item as a map of the AWS response fields, reduced by `fields`.
+
+#### aws_account_check
+
+Confirms that the credentials resolve to the expected AWS account before
+anything is changed. It asks STS for the caller identity using the same
+`env`, `region`, and `profile` resolution as every other AWS task, so it
+verifies exactly the credentials the following AWS tasks will use. A wrong
+account is otherwise only visible as a confusing "does not exist" error on
+the first resource lookup, or not at all.
+
+| Field | Meaning |
+|---|---|
+| `account_id` | The 12-digit account the credentials must belong to. Optional when `AWS_ACCOUNT_ID` is set in the environment file, which keeps the account next to the credentials it describes. The field wins when both are set. |
+| `on_mismatch` | `fatal` (default), `warn`, or `stop`. Applies when the identity was fetched but the account differs. API and credential errors use `on_fail` as usual. |
+
+Produces: `aws_account_id`, `aws_arn`, `aws_user_id`,
+`check_aws_account_passed` (`true` or `false`). On a mismatch the variables
+are still set so a later task can inspect the outcome.
+
+```yaml
+- name: Confirm we are in the production account
+  task: aws_account_check
+  env: prod.env
+  account_id: "123456789012"
+```
+
+With `AWS_ACCOUNT_ID=123456789012` in `prod.env`, the `account_id` line can
+be omitted.
 
 #### aws_ec2_instance_list
 

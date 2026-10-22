@@ -4,6 +4,7 @@
 package aws
 
 import (
+	_ "github.com/OpsBlade/OpsBlade/workflow/aws/account/check"
 	_ "github.com/OpsBlade/OpsBlade/workflow/aws/asg"
 	_ "github.com/OpsBlade/OpsBlade/workflow/aws/ec2"
 )

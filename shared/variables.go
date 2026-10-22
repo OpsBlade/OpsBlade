@@ -109,13 +109,27 @@ func processField(field reflect.Value) {
 		}
 	case reflect.Interface:
 		if !field.IsNil() {
-			elem := field.Elem()
-			if elem.Kind() == reflect.String {
-				field.Set(reflect.ValueOf(replaceVarsInString(elem.Interface())))
-			} else {
-				processField(elem)
-			}
+			field.Set(reflect.ValueOf(processValue(field.Interface())))
 		}
+	}
+}
+
+// processValue returns v with {{...}} placeholders resolved in any nested strings.
+// The value is copied into an addressable location so that structs held in an
+// interface can be processed. Non-string scalars are returned unchanged.
+func processValue(v any) any {
+	if v == nil {
+		return nil
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.String, reflect.Map, reflect.Slice, reflect.Array, reflect.Struct, reflect.Ptr:
+		addressable := reflect.New(rv.Type()).Elem()
+		addressable.Set(rv)
+		processField(addressable)
+		return addressable.Interface()
+	default:
+		return v
 	}
 }
 
@@ -133,14 +147,7 @@ func processMap(field reflect.Value) {
 	original := field.Interface().(map[string]any)
 	newMap := make(map[string]any)
 	for k, v := range original {
-		rv := reflect.ValueOf(v)
-		if rv.Kind() == reflect.Map || rv.Kind() == reflect.Struct {
-			ProcessVars(&v)
-		} else if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
-			newMap[k] = processSliceValue(rv)
-			continue
-		}
-		newMap[k] = replaceVarsInString(v)
+		newMap[k] = processValue(v)
 	}
 	field.Set(reflect.ValueOf(newMap))
 }
@@ -158,32 +165,8 @@ func processSlice(field reflect.Value) {
 
 	// Handle structs, maps, etc
 	for i := 0; i < field.Len(); i++ {
-		elem := field.Index(i)
-		if elem.Kind() == reflect.Struct {
-			ProcessVars(elem.Addr().Interface())
-		} else if elem.Kind() == reflect.Map && elem.Type().Key().Kind() == reflect.String {
-			vm := elem.Interface().(map[string]any)
-			newMap := make(map[string]any)
-			for k, v := range vm {
-				ProcessVars(&v)
-				newMap[k] = replaceVarsInString(v)
-			}
-			elem.Set(reflect.ValueOf(newMap))
-		}
+		processField(field.Index(i))
 	}
-}
-
-func processSliceValue(rv reflect.Value) []any {
-	slice := make([]any, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		item := rv.Index(i).Interface()
-		if reflect.TypeOf(item).Kind() == reflect.Map ||
-			reflect.TypeOf(item).Kind() == reflect.Struct {
-			ProcessVars(&item)
-		}
-		slice[i] = replaceVarsInString(item)
-	}
-	return slice
 }
 
 // Utility function to replace \{\{...\}\} placeholders in strings

@@ -52,13 +52,11 @@ func New(options ...Option) (*CloudAWS, error) {
 	// Attempt to load from the environment
 	cfg.AccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
 	cfg.SecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
-	cfg.Region = os.Getenv("AWS_REGION")
+	if cfg.Region == "" { // A region option takes precedence over the environment
+		cfg.Region = os.Getenv("AWS_REGION")
+	}
 
-	if cfg.AccessKey != "" && cfg.SecretKey != "" {
-		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, "")),
-			config.WithRegion(cfg.Region))
-	} else if cfg.Profile != "" { // If profile is provided, use shared config profile
+	if cfg.Profile != "" { // If profile is provided, use shared config profile
 		if cfg.Region == "" { // If region is set, use it
 			awsCfg, err = config.LoadDefaultConfig(context.TODO(),
 				config.WithSharedConfigProfile(cfg.Profile))
@@ -67,6 +65,10 @@ func New(options ...Option) (*CloudAWS, error) {
 				config.WithSharedConfigProfile(cfg.Profile),
 				config.WithRegion(cfg.Region))
 		}
+	} else if cfg.AccessKey != "" && cfg.SecretKey != "" {
+		awsCfg, err = config.LoadDefaultConfig(context.TODO(),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, "")),
+			config.WithRegion(cfg.Region))
 	} else { // Otherwise, use the default credential provider chain
 		if cfg.Region == "" { // If region is set, use it
 			awsCfg, err = config.LoadDefaultConfig(context.TODO())

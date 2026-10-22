@@ -10,8 +10,14 @@ OpsBlade is an Ansible-inspired cloud operations tool written in Go. It executes
 
 ### Build
 ```bash
-# Standard build (stamps commit, build time, and build number via ldflags)
+# Default: run the test suite, then build only if it passes
+make
+
+# Build only (stamps commit, build time, and build number via ldflags)
 make build
+
+# Build and copy to /usr/local/bin (as root) or ~/bin
+make install
 
 # Cross-compile for linux/darwin on amd64/arm64 into bin/
 make build-all
@@ -23,7 +29,7 @@ go build -o opsblade
 ### Test
 ```bash
 # Full regression suite: build, vet, go test -race. This is the CI/CD gate; it exits non-zero on any failure.
-make check         # equivalent: make test, ./test.sh
+make test          # equivalent: ./test.sh; make check is a legacy alias
 ./test.sh -x       # keep the test log
 
 # Single package

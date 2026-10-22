@@ -41,8 +41,8 @@ func (t *Task) Execute() shared.TaskResult {
 
 	if t.Context.DryRun {
 		fmt.Printf("Dry run...would sleep %d seconds", t.Sleep)
-	} else {
-		time.Sleep(time.Duration(t.Sleep) * time.Second)
+		return t.Context.Result(true, fmt.Sprintf("Dry run, would sleep for %d seconds", t.Sleep), nil)
 	}
+	time.Sleep(time.Duration(t.Sleep) * time.Second)
 	return t.Context.Result(true, fmt.Sprintf("Slept for %d seconds", t.Sleep), nil)
 }

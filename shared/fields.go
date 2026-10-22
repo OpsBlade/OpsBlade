@@ -107,7 +107,7 @@ func collectFields(path string, val any, fields []string, output map[string]any)
 					elemValue := v.MapIndex(key).Interface()
 					subData := make(map[string]interface{})
 					collectFields("", elemValue, []string{suffix}, subData)
-					if value, exists := subData[suffix]; exists {
+					if value, exists := lookupIgnoreCase(subData, suffix); exists {
 						results[keyStr] = value
 					}
 				}
@@ -185,7 +185,7 @@ func collectFields(path string, val any, fields []string, output map[string]any)
 					elemValue := v.Index(i).Interface()
 					subData := make(map[string]interface{})
 					collectFields("", elemValue, []string{suffix}, subData)
-					if value, exists := subData[suffix]; exists {
+					if value, exists := lookupIgnoreCase(subData, suffix); exists {
 						results = append(results, value)
 					}
 				}
@@ -208,6 +208,19 @@ func containsFieldIgnoreCase(fields []string, candidate string) bool {
 		}
 	}
 	return false
+}
+
+// lookupIgnoreCase returns the value for key in m, matching the key case-insensitively
+func lookupIgnoreCase(m map[string]any, key string) (any, bool) {
+	if value, exists := m[key]; exists {
+		return value, true
+	}
+	for k, v := range m {
+		if strings.EqualFold(k, key) {
+			return v, true
+		}
+	}
+	return nil, false
 }
 
 // joinPath concatenates two strings with a period separator
